@@ -1,9 +1,20 @@
-# Auto-build APK: push ke main -> APK debug (artifact),
-# push tag v* (mis. v1.0.0) -> APK release di GitHub Release.
+# Auto-build APK:
+# - push ke main            -> flutter pub get, analyze, test, build DEBUG apk,
+#                              upload sebagai Actions artifact. TIDAK ada release.
+# - push tag v* (mis. v1.0.0) -> pub get, analyze, test, restore upload
+#                              keystore dari Secrets, build RELEASE apk
+#                              (signed keystore permanen), buat GitHub Release
+#                              + attach app-release.apk.
+# - workflow_dispatch       -> bisa dijalankan manual; perilakunya mengikuti
+#                              ref yang dipilih (branch -> jalur debug,
+#                              tag -> jalur release).
+#
 # .env TIDAK di-commit (gitignored) — dibuat saat build dari Secrets.
 # Wajib isi di repo Settings > Secrets > Actions:
 #   SUPABASE_URL, SUPABASE_ANON_KEY, R2_ENDPOINT,
-#   R2_ACCESS_KEY, R2_SECRET_KEY, R2_BUCKET
+#   R2_ACCESS_KEY, R2_SECRET_KEY, R2_BUCKET,
+#   ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
+#   ANDROID_KEY_PASSWORD, ANDROID_KEY_ALIAS
 name: build-apk
 
 on:
@@ -50,16 +61,32 @@ jobs:
 
       # Upload keystore permanen: release APK HARUS signed dengan key yang
       # sama tiap build, kalau tidak Android menolak install update.
+      # Gagal cepat di sini (bukan 3 menit kemudian di Gradle) kalau
+      # secrets kosong/rusak.
       - name: Restore upload keystore
         if: startsWith(github.ref, 'refs/tags/')
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/upload-keystore.jks
+          set -euo pipefail
+          if [ -z "$KEYSTORE_B64" ] || [ -z "$KEYSTORE_PASS" ] \
+             || [ -z "$KEY_PASS" ] || [ -z "$KEY_ALIAS" ]; then
+            echo "::error::One or more ANDROID_KEYSTORE_* secrets are empty. Fill them in repo Settings > Secrets > Actions."
+            exit 1
+          fi
+          printf '%s' "$KEYSTORE_B64" | base64 -d > android/app/upload-keystore.jks
           cat > android/key.properties <<EOF
-          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
-          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          storePassword=$KEYSTORE_PASS
+          keyPassword=$KEY_PASS
+          keyAlias=$KEY_ALIAS
           storeFile=upload-keystore.jks
           EOF
+          # Pastikan file hasil decode benar-benar keystore valid.
+          keytool -list -keystore android/app/upload-keystore.jks \
+            -storepass "$KEYSTORE_PASS" -alias "$KEY_ALIAS" > /dev/null
 
       - name: Build debug APK (branch push)
         if: startsWith(github.ref, 'refs/heads/')
@@ -76,12 +103,33 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         run: flutter build apk --release
 
+      # Audit trail signing: pastikan APK ter-sign dengan benar dan catat
+      # fingerprint sertifikat di log (bandingkan antar rilis).
+      - name: Verify release signature (tag push)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          set -euo pipefail
+          APK=build/app/outputs/flutter-apk/app-release.apk
+          test -f "$APK"
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -name apksigner | sort | tail -1)
+          "$APKSIGNER" verify --print-certs "$APK" | grep -E "Signer #1|SHA-256"
+
+      # Idempoten: kalau release untuk tag ini sudah ada (mis. dibuat
+      # manual), upload/overwrite APK-nya; kalau belum, buat release baru.
+      # `gh release create` murni akan gagal "already exists" pada kasus itu.
       - name: Publish to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "${{ github.ref_name }}" \
-            build/app/outputs/flutter-apk/app-release.apk \
-            --title "${{ github.ref_name }}" \
-            --notes "Auto build ourspace ${{ github.ref_name }}"
+          set -euo pipefail
+          TAG="${{ github.ref_name }}"
+          APK=build/app/outputs/flutter-apk/app-release.apk
+          test -f "$APK"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$APK" --clobber
+          else
+            gh release create "$TAG" "$APK" \
+              --title "$TAG" \
+              --notes "Auto build ourspace $TAG"
+          fi
