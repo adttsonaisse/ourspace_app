@@ -1,0 +1,144 @@
+// Auth implementations. UI takes an AuthRepo (see repos.dart) so tests
+// inject fakes and prod resolves Supabase when configured.
+
+import 'dart:async';
+import 'dart:io';
+
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'repos.dart';
+import 'supa.dart';
+
+/// Supabase-backed auth. Throws FriendlyAuthError (a StateError with a
+/// human message) so screens can show it directly in a SnackBar.
+class SupabaseAuthRepo implements AuthRepo {
+  SupabaseClient get _c => Supa.client;
+
+  @override
+  Future<void> signUp(String email, String password,
+      {String? username}) async {
+    try {
+      await _c.auth.signUp(
+        email: email.trim(),
+        password: password,
+        data: (username ?? '').trim().isEmpty
+            ? null
+            : {'username': username!.trim()},
+      );
+    } catch (e) {
+      throw StateError(friendlyAuthError(e));
+    }
+  }
+
+  @override
+  Future<void> signIn(String email, String password) async {
+    try {
+      await _c.auth.signInWithPassword(
+          email: email.trim(), password: password);
+    } catch (e) {
+      throw StateError(friendlyAuthError(e));
+    }
+  }
+
+  @override
+  Future<void> signOut() async {
+    try {
+      await _c.auth.signOut();
+    } catch (e) {
+      throw StateError(friendlyAuthError(e));
+    }
+  }
+
+  @override
+  String? get currentUserId => _c.auth.currentUser?.id;
+
+  @override
+  String? get currentUsername {
+    final m = _c.auth.currentUser?.userMetadata;
+    final u = (m?['username'] as String?)?.trim();
+    if (u != null && u.isNotEmpty) return u;
+    return null;
+  }
+
+  @override
+  String? get currentEmail => _c.auth.currentUser?.email;
+
+  @override
+  Stream<String?> watchAuth() =>
+      _c.auth.onAuthStateChange.map((e) => e.session?.user.id);
+}
+
+/// Local demo auth (no backend): accepts anything, remembers a fake uid.
+/// Keeps widget tests + fresh clones usable without .env.
+class DemoAuthRepo implements AuthRepo {
+  String? _uid;
+  String? _username;
+  String? _email;
+  final _ctrl = StreamController<String?>.broadcast();
+
+  /// Last username handed to signUp — test seam, demo only.
+  String? get username => _username;
+
+  @override
+  Future<void> signUp(String email, String password,
+      {String? username}) async {
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    _uid = 'demo-user';
+    _username = (username ?? '').trim().isEmpty ? null : username!.trim();
+    _email = email.trim().isEmpty ? null : email.trim();
+    _ctrl.add(_uid);
+  }
+
+  @override
+  Future<void> signIn(String email, String password) async {
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    _uid = 'demo-user';
+    _email = email.trim().isEmpty ? _email : email.trim();
+    _ctrl.add(_uid);
+  }
+
+  @override
+  Future<void> signOut() async {
+    _uid = null;
+    _ctrl.add(null);
+  }
+
+  @override
+  String? get currentUserId => _uid;
+
+  @override
+  String? get currentUsername => _username;
+
+  @override
+  String? get currentEmail => _email;
+
+  @override
+  Stream<String?> watchAuth() => _ctrl.stream;
+}
+
+/// Prod resolves Supabase when configured, demo otherwise.
+AuthRepo resolveAuthRepo() =>
+    Supa.ready ? SupabaseAuthRepo() : DemoAuthRepo();
+
+String friendlyAuthError(Object e) {
+  if (e is SocketException) {
+    return 'No connection. Check internet and retry.';
+  }
+  if (e is AuthException) {
+    final m = e.message.toLowerCase();
+    if (m.contains('already registered') || m.contains('already exists')) {
+      return 'Already have an account? Log in instead.';
+    }
+    if (m.contains('invalid login') || m.contains('invalid credentials')) {
+      return "Hmm, that login didn't match. Try again.";
+    }
+    if (m.contains('password')) return 'Password needs 6+ characters.';
+    if (m.contains('email')) return 'That email looks off.';
+    if (m.contains('network') || m.contains('failed host')) {
+      return 'No connection. Check internet and retry.';
+    }
+    return e.message;
+  }
+  if (e is StateError && e.message.isNotEmpty) return e.message;
+  return 'Something hiccuped. Try again.';
+}

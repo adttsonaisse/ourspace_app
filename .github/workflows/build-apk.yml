@@ -1,0 +1,74 @@
+# Auto-build APK: push ke main -> APK debug (artifact),
+# push tag v* (mis. v1.0.0) -> APK release di GitHub Release.
+# .env TIDAK di-commit (gitignored) — dibuat saat build dari Secrets.
+# Wajib isi di repo Settings > Secrets > Actions:
+#   SUPABASE_URL, SUPABASE_ANON_KEY, R2_ENDPOINT,
+#   R2_ACCESS_KEY, R2_SECRET_KEY, R2_BUCKET
+name: build-apk
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.3'
+          cache: true
+
+      - name: Generate .env from secrets
+        run: |
+          cat > .env <<EOF
+          SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+          R2_ENDPOINT=${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY=${{ secrets.R2_ACCESS_KEY }}
+          R2_SECRET_KEY=${{ secrets.R2_SECRET_KEY }}
+          R2_BUCKET=${{ secrets.R2_BUCKET }}
+          EOF
+
+      - run: flutter pub get
+      - run: flutter analyze
+      # Hapus baris ini kalau test terlalu lama di CI:
+      - run: flutter test
+
+      - name: Build debug APK (branch push)
+        if: startsWith(github.ref, 'refs/heads/')
+        run: flutter build apk --debug
+
+      - name: Upload debug APK
+        if: startsWith(github.ref, 'refs/heads/')
+        uses: actions/upload-artifact@v4
+        with:
+          name: ourspace-debug
+          path: build/app/outputs/flutter-apk/app-debug.apk
+
+      - name: Build release APK (tag push)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: flutter build apk --release
+
+      - name: Publish to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            build/app/outputs/flutter-apk/app-release.apk \
+            --title "${{ github.ref_name }}" \
+            --notes "Auto build ourspace ${{ github.ref_name }}"
