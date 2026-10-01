@@ -35,6 +35,7 @@ class _SettingsTabState extends State<SettingsTab> {
   bool notif = true;
   bool _leaving = false;
   bool _exporting = false;
+  bool _savingProfile = false;
   late final AuthRepo _auth;
   late final SpaceRepo _spaces;
   List<MemberProfile> _members = [];
@@ -163,6 +164,41 @@ class _SettingsTabState extends State<SettingsTab> {
     }
   }
 
+  Future<void> _editProfile() async {
+    final saved = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.fromLTRB(
+            16, 16, 16, 16 + MediaQuery.of(sheetCtx).viewInsets.bottom),
+        child: _EditProfileSheet(
+          initial: _myName,
+          email: _auth.currentEmail,
+        ),
+      ),
+    );
+    if (saved == null || !mounted) return;
+    final next = saved.trim();
+    if (next.isEmpty || next == _myName || _savingProfile) return;
+    setState(() => _savingProfile = true);
+    try {
+      await _spaces.ensureProfile(username: next);
+      await _loadMembers();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Username updated')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not save — ${e.toString().replaceFirst('StateError: ', '')}')),
+      );
+    } finally {
+      if (mounted) setState(() => _savingProfile = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final space = widget.space;
@@ -221,6 +257,24 @@ class _SettingsTabState extends State<SettingsTab> {
             color: Kawaii.cardOf(context),
             padding: EdgeInsets.zero,
             child: Column(children: [
+              _row(Icons.person_rounded, 'Edit profile', Kawaii.peach,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text('@$_myName',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13)),
+                      ),
+                      const SizedBox(width: 6),
+                      const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+                    ],
+                  ),
+                  onTap: _savingProfile ? null : _editProfile),
+              _div(),
               _row(Icons.notifications_rounded, 'Sweet reminders', Kawaii.peach,
                   trailing: _stickerSwitch(
                       value: notif,
@@ -357,6 +411,82 @@ class _SettingsTabState extends State<SettingsTab> {
         inactiveThumbColor: Colors.white,
         trackOutlineColor: WidgetStateProperty.all(edge),
         trackOutlineWidth: WidgetStateProperty.all(2.5),
+      ),
+    );
+  }
+}
+
+/// Bottom-sheet form for editing the personal username.
+/// Owns its controller so dispose happens with the sheet route.
+class _EditProfileSheet extends StatefulWidget {
+  final String initial;
+  final String? email;
+  const _EditProfileSheet({required this.initial, this.email});
+
+  @override
+  State<_EditProfileSheet> createState() => _EditProfileSheetState();
+}
+
+class _EditProfileSheetState extends State<_EditProfileSheet> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _ctrl =
+      TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return KawaiiCard(
+      color: Kawaii.cardOf(context),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const KawaiiPill(label: 'personal profile', color: Kawaii.peach),
+            const SizedBox(height: 12),
+            const Text('Edit username',
+                style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    fontFamily: Kawaii.displayFamily)),
+            const SizedBox(height: 4),
+            Text(
+              widget.email ?? 'solo demo account',
+              style:
+                  const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 14),
+            KawaiiInput(
+              hint: 'e.g. alex_02',
+              label: 'USERNAME',
+              controller: _ctrl,
+              prefix: Icons.person_rounded,
+              validator: (v) {
+                final t = (v ?? '').trim();
+                if (t.isEmpty) return 'Pick a username';
+                if (t.length > 40) return 'Max 40 characters';
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            KawaiiButton(
+              label: 'Save username',
+              icon: Icons.check_rounded,
+              color: KawaiiBtnColor.peach,
+              onTap: () {
+                if (_formKey.currentState?.validate() ?? false) {
+                  Navigator.of(context).pop(_ctrl.text.trim());
+                }
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

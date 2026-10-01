@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'data/app_update_repo.dart';
 import 'data/auth_repo.dart';
 import 'data/content_repos.dart';
 import 'data/models/space.dart';
@@ -7,6 +10,7 @@ import 'data/repos.dart';
 import 'data/space_repo.dart';
 import 'data/supa.dart';
 import 'theme/kawaii.dart';
+import 'theme/prefs.dart';
 import 'widgets/kawaii.dart';
 import 'widgets/kawaii_fab.dart';
 import 'widgets/offline_banner.dart';
@@ -61,6 +65,8 @@ class _AppShellState extends State<AppShell> {
   bool _spaceLoading = true;
   List<MemberProfile> _members = [];
   String _myUsername = 'you';
+  AppRelease? _update;
+  bool _updateDialogShown = false;
 
   bool get _paired => _space != null;
   String get _spaceId => _space?.id ?? 'local';
@@ -78,6 +84,111 @@ class _AppShellState extends State<AppShell> {
   void initState() {
     super.initState();
     _loadSpace();
+    _checkForUpdate();
+  }
+
+  /// Check GitHub releases for a newer build. Silent on any failure
+  /// (offline, no releases, tests without platform plugins) so the
+  /// shell never blocks on this.
+  Future<void> _checkForUpdate() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      final rel = await fetchLatestRelease();
+      if (rel == null) return;
+      if (!isNewerVersion(info.version, rel.tag)) return;
+      final skipped = await KawaiiPrefs.loadSkippedUpdateTag();
+      if (skipped == rel.tag) return;
+      if (!mounted) return;
+      setState(() => _update = rel);
+      WidgetsBinding.instance.addPostFrameCallback((_) => _showUpdateDialog());
+    } catch (_) {}
+  }
+
+  void _showUpdateDialog() {
+    final rel = _update;
+    if (rel == null || _updateDialogShown || !mounted) return;
+    _updateDialogShown = true;
+    final notes = rel.notes.trim();
+    showDialog<void>(
+      context: context,
+      builder: (dlgCtx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: KawaiiCard(
+          color: Kawaii.sunnySubtle,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const KawaiiPill(
+                  label: 'fresh sticker drop', color: Kawaii.sunny),
+              const SizedBox(height: 12),
+              Text('ourspace ${rel.tag} is here',
+                  style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      fontFamily: Kawaii.displayFamily)),
+              const SizedBox(height: 6),
+              Text(
+                notes.isEmpty
+                    ? 'A cuter build is waiting on GitHub.'
+                    : (notes.length > 220
+                        ? '${notes.substring(0, 220)}…'
+                        : notes),
+                style: const TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 16),
+              KawaiiButton(
+                label: 'View release',
+                icon: Icons.file_download_rounded,
+                color: KawaiiBtnColor.sunny,
+                onTap: () {
+                  Navigator.of(dlgCtx).pop();
+                  _openRelease();
+                },
+              ),
+              const SizedBox(height: 10),
+              Center(
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.of(dlgCtx).pop();
+                    _dismissUpdate();
+                  },
+                  child: const Text('Later',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: Kawaii.ink,
+                          decoration: TextDecoration.underline)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openRelease() async {
+    final url = _update?.url;
+    if (url == null || url.isEmpty) return;
+    try {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open the release page')),
+      );
+    }
+  }
+
+  Future<void> _dismissUpdate() async {
+    final tag = _update?.tag;
+    if (tag != null) {
+      try {
+        await KawaiiPrefs.saveSkippedUpdateTag(tag);
+      } catch (_) {}
+    }
+    if (mounted) setState(() => _update = null);
   }
 
   Future<void> _loadSpace() async {
@@ -185,6 +296,47 @@ class _AppShellState extends State<AppShell> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const OfflineBanner(),
+          if (_update != null)
+            GestureDetector(
+              onTap: _openRelease,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                width: double.infinity,
+                margin: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Kawaii.sunnySubtle,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                      color: Kawaii.edgeOf(context), width: 2.5),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.celebration_rounded,
+                        size: 18, color: Kawaii.ink),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                          'ourspace ${_update!.tag} is here — tap to update',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13,
+                              color: Kawaii.ink)),
+                    ),
+                    GestureDetector(
+                      onTap: _dismissUpdate,
+                      behavior: HitTestBehavior.opaque,
+                      child: const Padding(
+                        padding: EdgeInsets.all(4),
+                        child: Icon(Icons.close_rounded,
+                            size: 16, color: Kawaii.ink),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           Expanded(
             child: Stack(
         children: [

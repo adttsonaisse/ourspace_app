@@ -5,6 +5,7 @@ import 'kawaii.dart';
 abstract class KawaiiPrefs {
   static const _themeKey = 'kawaii_theme_dark';
   static const _notifKey = 'kawaii_notif';
+  static const _skippedUpdateKey = 'kawaii_skipped_update_tag';
 
   static Future<void> loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
@@ -25,5 +26,15 @@ abstract class KawaiiPrefs {
   static Future<void> saveNotif(bool v) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_notifKey, v);
+  }
+
+  static Future<String?> loadSkippedUpdateTag() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_skippedUpdateKey);
+  }
+
+  static Future<void> saveSkippedUpdateTag(String tag) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_skippedUpdateKey, tag);
   }
 }
