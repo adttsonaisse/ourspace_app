@@ -49,3 +49,7 @@ app.*.map.json
 
 # Env — secrets, never commit
 .env
+# Android signing — secrets, never commit
+android/key.properties
+*.jks
+*.keystore

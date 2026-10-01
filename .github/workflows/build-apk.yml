@@ -48,6 +48,19 @@ jobs:
       # Hapus baris ini kalau test terlalu lama di CI:
       - run: flutter test
 
+      # Upload keystore permanen: release APK HARUS signed dengan key yang
+      # sama tiap build, kalau tidak Android menolak install update.
+      - name: Restore upload keystore
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/upload-keystore.jks
+          cat > android/key.properties <<EOF
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          storeFile=upload-keystore.jks
+          EOF
+
       - name: Build debug APK (branch push)
         if: startsWith(github.ref, 'refs/heads/')
         run: flutter build apk --debug

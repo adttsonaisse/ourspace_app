@@ -48,6 +48,27 @@ void main() {
       expect(rel.tag, 'v1.1.0');
       expect(rel.url, contains('releases/tag'));
       expect(rel.notes, 'fresh stickers');
+      expect(rel.supportsDirectInstall, isFalse);
+    });
+
+    test('picks the apk asset url', () {
+      final rel = AppRelease.fromJson({
+        'tag_name': 'v1.1.0',
+        'html_url': 'https://github.com/o/r/releases/tag/v1.1.0',
+        'assets': [
+          {
+            'name': 'app-release.apk',
+            'browser_download_url':
+                'https://github.com/o/r/releases/download/v1.1.0/app-release.apk',
+          },
+          {
+            'name': 'notes.txt',
+            'browser_download_url': 'https://example.com/notes.txt',
+          },
+        ],
+      });
+      expect(rel.apkUrl, contains('.apk'));
+      expect(rel.supportsDirectInstall, isTrue);
     });
   });
 

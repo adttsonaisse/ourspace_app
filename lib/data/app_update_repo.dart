@@ -20,11 +20,13 @@ class AppRelease {
   final String name;
   final String url;
   final String notes;
+  final String apkUrl;
   const AppRelease({
     required this.tag,
     required this.name,
     required this.url,
     required this.notes,
+    this.apkUrl = '',
   });
 
   factory AppRelease.fromJson(Map<String, dynamic> j) {
@@ -32,8 +34,24 @@ class AppRelease {
     final name = ((j['name'] ?? tag) as String).trim();
     final url = ((j['html_url'] ?? '') as String).trim();
     final notes = ((j['body'] ?? '') as String).trim();
-    return AppRelease(tag: tag, name: name, url: url, notes: notes);
+    var apk = '';
+    final assets = j['assets'];
+    if (assets is List) {
+      for (final a in assets) {
+        if (a is! Map<String, dynamic>) continue;
+        final name = ((a['name'] ?? '') as String).toLowerCase();
+        final dl = ((a['browser_download_url'] ?? '') as String).trim();
+        if (name.endsWith('.apk') && dl.isNotEmpty) {
+          apk = dl;
+          break;
+        }
+      }
+    }
+    return AppRelease(tag: tag, name: name, url: url, notes: notes, apkUrl: apk);
   }
+
+  /// Direct in-app install is Android-only and needs an APK asset.
+  bool get supportsDirectInstall => apkUrl.isNotEmpty;
 }
 
 /// Strip leading `v`, drop `+build`, keep `major.minor.patch`.
