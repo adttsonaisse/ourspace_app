@@ -5,6 +5,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'models/space.dart';
@@ -294,10 +295,12 @@ String friendlySpaceError(Object e) {
       m.contains('relation') ||
       m.contains('function create_invite') ||
       m.contains('function join_with_code')) {
-    return 'Backend needs setup — run supabase/schema.sql (+ m6/m7) in Supabase SQL editor, then retry.';
+    debugPrint('[space] backend missing: $e');
+    return 'Something hiccuped. Try again.';
   }
   if (m.contains('permission denied') || m.contains('row-level security')) {
-    return 'Blocked by database rules — re-run supabase/schema.sql policies in Supabase SQL editor.';
+    debugPrint('[space] rls blocked: $e');
+    return 'Something hiccuped. Try again.';
   }
   if (e is StateError && e.message.isNotEmpty) return e.message;
   return 'Something hiccuped. Try again.';
