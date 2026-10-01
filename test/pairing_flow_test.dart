@@ -20,7 +20,7 @@ Future<void> _pumpPairing(WidgetTester tester) async {
 void main() {
   testWidgets('Invite tab shows server code', (tester) async {
     await _pumpPairing(tester);
-    expect(find.text('MOCHI-42'), findsOneWidget);
+    expect(find.text('482916'), findsOneWidget);
     expect(find.text('Enter ourspace together'), findsOneWidget);
   });
 
@@ -29,7 +29,7 @@ void main() {
     await tester.tap(find.text('I have a code'));
     await tester.pump(const Duration(milliseconds: 200));
 
-    await tester.enterText(find.byType(TextField), 'NOPE-00');
+    await tester.enterText(find.byType(TextField), '000000');
     await tester.tap(find.text('Check code'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -44,7 +44,7 @@ void main() {
     await tester.tap(find.text('I have a code'));
     await tester.pump(const Duration(milliseconds: 200));
 
-    await tester.enterText(find.byType(TextField), 'mochi-42');
+    await tester.enterText(find.byType(TextField), '482-916');
     await tester.tap(find.text('Check code'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));

@@ -174,7 +174,7 @@ class SupabaseSpaceRepo implements SpaceRepo {
   }
 }
 
-/// Local demo pairing: deterministic MOCHI-42, no backend.
+/// Local demo pairing: deterministic 482916, no backend.
 /// Keeps widget tests + fresh clones usable without .env.
 class DemoSpaceRepo implements SpaceRepo {
   Space? _space;
@@ -200,7 +200,7 @@ class DemoSpaceRepo implements SpaceRepo {
   @override
   Future<InviteCode> createInvite(String spaceId) async {
     return InviteCode(
-      code: 'MOCHI-42',
+      code: '482916',
       spaceId: spaceId,
       createdBy: 'demo-user',
       expiresAt: DateTime.now().add(const Duration(hours: 24)),
@@ -211,8 +211,8 @@ class DemoSpaceRepo implements SpaceRepo {
 
   @override
   Future<Space> joinWithCode(String code) async {
-    final norm = code.trim().toUpperCase().replaceAll(' ', '');
-    if (norm != 'MOCHI-42') throw StateError('code not found');
+    final norm = code.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+    if (norm != '482916') throw StateError('code not found');
     _space ??= Space(
       id: 'demo-space',
       name: 'Our space',

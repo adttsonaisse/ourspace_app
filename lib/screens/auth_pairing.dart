@@ -388,9 +388,10 @@ class _PairingPageState extends State<PairingPage> {
         children: [
           const SizedBox(height: 8),
           KawaiiInput(
-              hint: 'e.g. MOCHI-42',
+              hint: 'e.g. 482916',
               label: 'PARTNER CODE',
               controller: codeCtrl,
+              keyboard: TextInputType.number,
               prefix: Icons.confirmation_number_outlined),
           const SizedBox(height: 12),
           if (_joined != null)
