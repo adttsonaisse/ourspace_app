@@ -174,8 +174,9 @@ class SupabaseSpaceRepo implements SpaceRepo {
   }
 }
 
-/// Local demo pairing: deterministic 482916, no backend.
-/// Keeps widget tests + fresh clones usable without .env.
+/// Local demo pairing: no backend, so no valid codes.
+/// Valid invite codes only come from Supabase (see SupabaseSpaceRepo).
+/// Demo keeps spaces/notes working solo; pairing shows a retry card.
 class DemoSpaceRepo implements SpaceRepo {
   Space? _space;
   final _ctrl = StreamController<Space?>.broadcast();
@@ -199,28 +200,12 @@ class DemoSpaceRepo implements SpaceRepo {
 
   @override
   Future<InviteCode> createInvite(String spaceId) async {
-    return InviteCode(
-      code: '482916',
-      spaceId: spaceId,
-      createdBy: 'demo-user',
-      expiresAt: DateTime.now().add(const Duration(hours: 24)),
-      usedCount: 0,
-      maxUses: 1,
-    );
+    throw StateError('Solo demo — pair codes come from the backend.');
   }
 
   @override
   Future<Space> joinWithCode(String code) async {
-    final norm = code.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
-    if (norm != '482916') throw StateError('code not found');
-    _space ??= Space(
-      id: 'demo-space',
-      name: 'Our space',
-      createdBy: 'demo-user',
-      createdAt: DateTime.now(),
-    );
-    _ctrl.add(_space);
-    return _space!;
+    throw StateError('code not found');
   }
 
   @override

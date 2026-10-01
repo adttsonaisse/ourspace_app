@@ -18,10 +18,13 @@ Future<void> _pumpPairing(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('Invite tab shows server code', (tester) async {
+  testWidgets('Demo mode has no local code, shows retry', (tester) async {
     await _pumpPairing(tester);
-    expect(find.text('482916'), findsOneWidget);
-    expect(find.text('Enter ourspace together'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Solo demo — pair codes come from the backend.'),
+        findsOneWidget);
+    expect(find.text('Retry'), findsOneWidget);
+    expect(find.text('482916'), findsNothing);
   });
 
   testWidgets('Join wrong code shows error, stays put', (tester) async {
@@ -39,21 +42,19 @@ void main() {
     expect(find.byType(AppShell), findsNothing);
   });
 
-  testWidgets('Join right code pairs and enters', (tester) async {
+  testWidgets('Join code without backend shows error, stays put',
+      (tester) async {
     await _pumpPairing(tester);
     await tester.tap(find.text('I have a code'));
     await tester.pump(const Duration(milliseconds: 200));
 
-    await tester.enterText(find.byType(TextField), '482-916');
+    await tester.enterText(find.byType(TextField), '482916');
     await tester.tap(find.text('Check code'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.textContaining('Found'), findsOneWidget);
-
-    await tester.tap(find.text('Pair & open home'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(find.byType(AppShell), findsOneWidget);
+    expect(find.text("Hmm, that code didn't match. Check with your person."),
+        findsOneWidget);
+    expect(find.byType(AppShell), findsNothing);
   });
 }
