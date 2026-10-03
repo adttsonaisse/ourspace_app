@@ -103,4 +103,36 @@ void main() {
       expect(await fetchLatestRelease(client: client), isNull);
     });
   });
+
+  group('checkForAppUpdate', () {
+    MockClient releaseClient(String tag) => MockClient((_) async =>
+        http.Response(
+            jsonEncode({
+              'tag_name': tag,
+              'html_url': 'https://github.com/o/r/releases/tag/$tag',
+            }),
+            200));
+
+    test('same version stays quiet (upToDate)', () async {
+      final check = await checkForAppUpdate(
+          localVersion: '1.1.0', client: releaseClient('v1.1.0'));
+      expect(check.status, UpdateStatus.upToDate);
+      expect(check.release, isNull);
+    });
+
+    test('older local build reports available', () async {
+      final check = await checkForAppUpdate(
+          localVersion: '1.0.0', client: releaseClient('v1.1.0'));
+      expect(check.status, UpdateStatus.available);
+      expect(check.release?.tag, 'v1.1.0');
+    });
+
+    test('failure maps to failed, never throws', () async {
+      final client = MockClient((_) async => throw Exception('offline'));
+      final check =
+          await checkForAppUpdate(localVersion: '1.0.0', client: client);
+      expect(check.status, UpdateStatus.failed);
+      expect(check.release, isNull);
+    });
+  });
 }

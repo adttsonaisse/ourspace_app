@@ -102,4 +102,22 @@ void main() {
       'No connection. Check internet and retry.',
     );
   });
+
+  test('demo username propagates across resolveAuthRepo callers', () async {
+    // Regression: register on the login page must be visible in shell /
+    // settings, which resolve their own repo. No Supa in tests, so this
+    // exercises the shared demo instance.
+    final loginSide = resolveAuthRepo();
+    final settingsSide = resolveAuthRepo();
+    expect(identical(loginSide, settingsSide), isTrue);
+
+    await (loginSide as DemoAuthRepo).signUp(
+        'you@cutemail.com', 'secret123',
+        username: 'alex_02');
+    expect(settingsSide.currentUsername, 'alex_02');
+    expect(settingsSide.currentUserId, isNotNull);
+
+    await (settingsSide as DemoAuthRepo).signOut();
+    expect(loginSide.currentUserId, isNull);
+  });
 }

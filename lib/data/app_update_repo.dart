@@ -84,8 +84,7 @@ bool isNewerVersion(String localVersion, String remoteTag) {
 }
 
 /// Fetch latest GitHub release. Returns null on any failure.
-Future<AppRelease?> fetchLatestRelease({http.Client? client}) async {
-  final c = client ?? http.Client();
+Future<AppRelease?> fetchLatestRelease({http.Client? client}) async {  final c = client ?? http.Client();
   final close = client == null;
   try {
     final res = await c
@@ -105,4 +104,29 @@ Future<AppRelease?> fetchLatestRelease({http.Client? client}) async {
   } finally {
     if (close) c.close();
   }
+}
+
+/// Outcome of one update check. `failed` (offline, rate-limit, no releases)
+/// is distinct from `upToDate` so callers can message them differently.
+enum UpdateStatus { upToDate, available, failed }
+
+class UpdateCheck {
+  final UpdateStatus status;
+  final AppRelease? release;
+  const UpdateCheck(this.status, [this.release]);
+}
+
+/// Compare [localVersion] against the latest GitHub tag: same (or newer)
+/// local build -> [UpdateStatus.upToDate] with no notification; newer remote
+/// tag -> [UpdateStatus.available]. Never throws.
+Future<UpdateCheck> checkForAppUpdate({
+  required String localVersion,
+  http.Client? client,
+}) async {
+  final rel = await fetchLatestRelease(client: client);
+  if (rel == null) return const UpdateCheck(UpdateStatus.failed);
+  if (!isNewerVersion(localVersion, rel.tag)) {
+    return const UpdateCheck(UpdateStatus.upToDate);
+  }
+  return UpdateCheck(UpdateStatus.available, rel);
 }

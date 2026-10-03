@@ -70,7 +70,9 @@ class SupabaseAuthRepo implements AuthRepo {
 }
 
 /// Local demo auth (no backend): accepts anything, remembers a fake uid.
-/// Keeps widget tests + fresh clones usable without .env.
+/// Instances constructed directly are independent (tests); the app shares
+/// one via [resolveAuthRepo] so the username/session from login is visible
+/// in the shell and settings — mirroring the shared Supabase client.
 class DemoAuthRepo implements AuthRepo {
   String? _uid;
   String? _username;
@@ -151,9 +153,19 @@ class DemoAuthRepo implements AuthRepo {
   Stream<String?> watchAuth() => _ctrl.stream;
 }
 
+/// Demo auth shared by every screen (mirrors the Supabase singleton
+/// client): login on one page must be visible in shell/settings.
+DemoAuthRepo? _demoAuthSingleton;
+
 /// Prod resolves Supabase when configured, demo otherwise.
-AuthRepo resolveAuthRepo() =>
-    Supa.ready ? SupabaseAuthRepo() : DemoAuthRepo();
+/// Demo resolves to a shared instance so the username/session from the
+/// login page propagates to the shell and settings instead of falling
+/// back to 'you'. Direct `DemoAuthRepo()` constructors stay independent
+/// for tests.
+AuthRepo resolveAuthRepo() {
+  if (Supa.ready) return SupabaseAuthRepo();
+  return _demoAuthSingleton ??= DemoAuthRepo();
+}
 
 String friendlyAuthError(Object e) {
   if (e is SocketException) {

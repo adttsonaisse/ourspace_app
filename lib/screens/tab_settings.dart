@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../data/app_update_repo.dart';
 import '../data/auth_repo.dart';
 import '../data/format.dart';
 import '../data/models/space.dart';
@@ -8,6 +11,7 @@ import '../data/repos.dart';
 import '../data/space_repo.dart';
 import '../theme/kawaii.dart';
 import '../theme/prefs.dart';
+import '../widgets/app_update_dialog.dart';
 import '../widgets/kawaii.dart';
 import 'auth_gate.dart';
 import 'auth_pairing.dart';
@@ -36,6 +40,8 @@ class _SettingsTabState extends State<SettingsTab> {
   bool _leaving = false;
   bool _exporting = false;
   bool _savingProfile = false;
+  bool _checkingUpdate = false;
+  String? _version;
   late final AuthRepo _auth;
   late final SpaceRepo _spaces;
   List<MemberProfile> _members = [];
@@ -81,6 +87,7 @@ class _SettingsTabState extends State<SettingsTab> {
       if (mounted) setState(() => notif = v);
     });
     _loadMembers();
+    _loadVersion();
   }
 
   @override
@@ -99,6 +106,79 @@ class _SettingsTabState extends State<SettingsTab> {
       final members = await _spaces.membersWithProfiles(space.id);
       if (mounted) setState(() => _members = members);
     } catch (_) {}
+  }
+
+  Future<void> _loadVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (mounted) setState(() => _version = info.version);
+    } catch (_) {}
+  }
+
+  /// Manual update check from Settings. Same version rule as the shell
+  /// auto-check (same -> quiet snackbar, newer -> dialog), except a
+  /// previously-skipped tag is shown again since the user asked explicitly.
+  Future<void> _manualCheckUpdate() async {
+    if (_checkingUpdate) return;
+    setState(() => _checkingUpdate = true);
+    try {
+      String localVersion;
+      try {
+        localVersion = (await PackageInfo.fromPlatform()).version;
+      } catch (_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Could not read app version. Try again.')),
+        );
+        return;
+      }
+      final check = await checkForAppUpdate(localVersion: localVersion);
+      if (!mounted) return;
+      switch (check.status) {
+        case UpdateStatus.upToDate:
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text(
+                    'You are on the latest version (v$localVersion)')),
+          );
+        case UpdateStatus.failed:
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text(
+                    'Could not check for updates — check connection and retry.')),
+          );
+        case UpdateStatus.available:
+          final rel = check.release!;
+          showDialog<void>(
+            context: context,
+            barrierDismissible: false,
+            builder: (dlgCtx) => AppUpdateDialog(
+              release: rel,
+              onLater: () {
+                Navigator.of(dlgCtx).pop();
+                KawaiiPrefs.saveSkippedUpdateTag(rel.tag);
+              },
+              onOpenRelease: () async {
+                final url = rel.url;
+                if (url.isEmpty) return;
+                try {
+                  await launchUrl(Uri.parse(url),
+                      mode: LaunchMode.externalApplication);
+                } catch (_) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Could not open the release page')),
+                  );
+                }
+              },
+            ),
+          );
+      }
+    } finally {
+      if (mounted) setState(() => _checkingUpdate = false);
+    }
   }
 
   Future<void> _logout() async {
@@ -307,6 +387,32 @@ class _SettingsTabState extends State<SettingsTab> {
                   _exporting ? 'Exporting…' : 'Export scrapbook',
                   Kawaii.mint,
                   onTap: _exporting ? null : _export),
+              _div(),
+              _row(
+                  Icons.system_update_rounded,
+                  _checkingUpdate ? 'Checking…' : 'Check for update',
+                  Kawaii.sunny,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_version != null)
+                        Text('v$_version',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w700, fontSize: 13)),
+                      if (_version != null) const SizedBox(width: 6),
+                      if (_checkingUpdate)
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child:
+                              CircularProgressIndicator(strokeWidth: 2.5),
+                        )
+                      else
+                        const Icon(Icons.arrow_forward_ios_rounded,
+                            size: 16),
+                    ],
+                  ),
+                  onTap: _checkingUpdate ? null : _manualCheckUpdate),
             ]),
           ),
           const SizedBox(height: 12),
