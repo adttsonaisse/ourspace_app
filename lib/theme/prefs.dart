@@ -37,4 +37,44 @@ abstract class KawaiiPrefs {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_skippedUpdateKey, tag);
   }
+
+  // Demo-mode session (no backend): remembers the local login so the app
+  // skips auth on cold start. Supabase mode needs nothing here — the
+  // SDK persists its own session.
+  static const _demoUidKey = 'demo_auth_uid';
+  static const _demoEmailKey = 'demo_auth_email';
+  static const _demoUsernameKey = 'demo_auth_username';
+
+  static Future<({String? uid, String? email, String? username})>
+      loadDemoSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    return (
+      uid: prefs.getString(_demoUidKey),
+      email: prefs.getString(_demoEmailKey),
+      username: prefs.getString(_demoUsernameKey),
+    );
+  }
+
+  static Future<void> saveDemoSession(
+      {required String uid, String? email, String? username}) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_demoUidKey, uid);
+    if (email == null) {
+      await prefs.remove(_demoEmailKey);
+    } else {
+      await prefs.setString(_demoEmailKey, email);
+    }
+    if (username == null) {
+      await prefs.remove(_demoUsernameKey);
+    } else {
+      await prefs.setString(_demoUsernameKey, username);
+    }
+  }
+
+  static Future<void> clearDemoSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_demoUidKey);
+    await prefs.remove(_demoEmailKey);
+    await prefs.remove(_demoUsernameKey);
+  }
 }

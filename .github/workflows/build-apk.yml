@@ -1,10 +1,11 @@
 # Auto-build APK:
-# - push ke main            -> flutter pub get, analyze, test, build DEBUG apk,
-#                              upload sebagai Actions artifact. TIDAK ada release.
+# - push ke main            -> flutter pub get, analyze, test, build DEBUG apk
+#                              sebagai validasi kompilasi saja. TIDAK upload
+#                              ke mana pun (tanpa artifact, tanpa release).
 # - push tag v* (mis. v1.0.0) -> pub get, analyze, test, restore upload
 #                              keystore dari Secrets, build RELEASE apk
 #                              (signed keystore permanen), buat GitHub Release
-#                              + attach app-release.apk.
+#                              + attach app-release.apk. Satu-satunya upload.
 # - workflow_dispatch       -> bisa dijalankan manual; perilakunya mengikuti
 #                              ref yang dipilih (branch -> jalur debug,
 #                              tag -> jalur release).
@@ -91,13 +92,6 @@ jobs:
       - name: Build debug APK (branch push)
         if: startsWith(github.ref, 'refs/heads/')
         run: flutter build apk --debug
-
-      - name: Upload debug APK
-        if: startsWith(github.ref, 'refs/heads/')
-        uses: actions/upload-artifact@v6
-        with:
-          name: ourspace-debug
-          path: build/app/outputs/flutter-apk/app-debug.apk
 
       - name: Build release APK (tag push)
         if: startsWith(github.ref, 'refs/tags/')

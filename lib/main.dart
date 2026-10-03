@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'data/supa.dart';
 import 'theme/kawaii.dart';
 import 'theme/prefs.dart';
-import 'screens/auth_get_started.dart';
+import 'screens/auth_gate.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -45,7 +45,7 @@ class _OurSpaceAppState extends State<OurSpaceApp> {
           theme: Kawaii.light(),
           darkTheme: Kawaii.dark(),
           themeMode: mode,
-          home: const GetStartedPage(),
+          home: const AuthGate(),
         );
       },
     );

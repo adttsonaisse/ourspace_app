@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import '../data/supa.dart';
-import '../shell.dart';
 import '../theme/kawaii.dart';
 import '../widgets/kawaii.dart';
 import 'auth_login.dart';
@@ -12,22 +10,8 @@ class GetStartedPage extends StatefulWidget {
 }
 
 class _GetStartedPageState extends State<GetStartedPage> {
-  @override
-  void initState() {
-    super.initState();
-    // Session restore: logged-in users skip the marketing page.
-    // No-op in demo mode (Supa not ready) so tests stay green.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !Supa.ready) return;
-      if (Supa.client.auth.currentUser != null) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const AppShell()),
-          (_) => false,
-        );
-      }
-    });
-  }
-
+  // Session restore lives in AuthGate now, so this page only shows when
+  // no session exists. No redirect logic here.
   @override
   Widget build(BuildContext context) {
     return Scaffold(

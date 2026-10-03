@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'repos.dart';
 import 'supa.dart';
+import '../theme/prefs.dart';
 
 /// Supabase-backed auth. Throws FriendlyAuthError (a StateError with a
 /// human message) so screens can show it directly in a SnackBar.
@@ -87,6 +88,9 @@ class DemoAuthRepo implements AuthRepo {
     _username = (username ?? '').trim().isEmpty ? null : username!.trim();
     _email = email.trim().isEmpty ? null : email.trim();
     _ctrl.add(_uid);
+    // Fire-and-forget: login must never block on local storage, and several
+    // widget tests run without a SharedPreferences mock.
+    unawaited(_persist());
   }
 
   @override
@@ -95,12 +99,43 @@ class DemoAuthRepo implements AuthRepo {
     _uid = 'demo-user';
     _email = email.trim().isEmpty ? _email : email.trim();
     _ctrl.add(_uid);
+    // Fire-and-forget: see signUp.
+    unawaited(_persist());
   }
 
   @override
   Future<void> signOut() async {
     _uid = null;
     _ctrl.add(null);
+    unawaited(_clearPersisted());
+  }
+
+  /// Rehydrate the last demo session (cold start without backend).
+  /// No-op when already signed in or nothing was saved.
+  Future<void> restore() async {
+    if (_uid != null) return;
+    try {
+      final s = await KawaiiPrefs.loadDemoSession();
+      if ((s.uid ?? '').isEmpty) return;
+      _uid = s.uid;
+      _email = s.email;
+      _username = s.username;
+    } catch (_) {}
+  }
+
+  Future<void> _persist() async {
+    final uid = _uid;
+    if (uid == null) return;
+    try {
+      await KawaiiPrefs.saveDemoSession(
+          uid: uid, email: _email, username: _username);
+    } catch (_) {}
+  }
+
+  Future<void> _clearPersisted() async {
+    try {
+      await KawaiiPrefs.clearDemoSession();
+    } catch (_) {}
   }
 
   @override

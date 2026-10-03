@@ -9,7 +9,7 @@ import '../data/space_repo.dart';
 import '../theme/kawaii.dart';
 import '../theme/prefs.dart';
 import '../widgets/kawaii.dart';
-import 'auth_get_started.dart';
+import 'auth_gate.dart';
 import 'auth_pairing.dart';
 
 class SettingsTab extends StatefulWidget {
@@ -117,7 +117,7 @@ class _SettingsTabState extends State<SettingsTab> {
     }
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const GetStartedPage()),
+      MaterialPageRoute(builder: (_) => const AuthGate()),
       (_) => false,
     );
   }
