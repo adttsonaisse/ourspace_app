@@ -42,10 +42,9 @@ class _GalleriesTabState extends State<GalleriesTab> {
     return _PilesData(piles, photos);
   }
 
-  void _snack(String msg) {
+  void _snack(String msg, {KawaiiAlertKind kind = KawaiiAlertKind.info}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
+    showKawaiiToast(context, msg, kind: kind);
   }
 
   Future<void> _removePhoto(PilePhoto ph) async {
@@ -53,7 +52,8 @@ class _GalleriesTabState extends State<GalleriesTab> {
       await widget.pilesRepo.removePhoto(ph.id);
       await widget.photoStore.remove(ph.r2Key);
     } catch (e) {
-      _snack(e.toString().replaceFirst('StateError: ', ''));
+      _snack(e.toString().replaceFirst('StateError: ', ''),
+          kind: KawaiiAlertKind.danger);
     }
   }
 
@@ -63,9 +63,10 @@ class _GalleriesTabState extends State<GalleriesTab> {
         await widget.photoStore.remove(ph.r2Key);
       }
       await widget.pilesRepo.removePile(p.id);
-      _snack('“${p.title}” removed');
+      _snack('“${p.title}” removed', kind: KawaiiAlertKind.success);
     } catch (e) {
-      _snack(e.toString().replaceFirst('StateError: ', ''));
+      _snack(e.toString().replaceFirst('StateError: ', ''),
+          kind: KawaiiAlertKind.danger);
     }
   }
 
@@ -160,7 +161,7 @@ class _GalleriesTabState extends State<GalleriesTab> {
                                   crossAxisCount: 2,
                                   crossAxisSpacing: 12,
                                   mainAxisSpacing: 12,
-                                  childAspectRatio: 0.92),
+                                  childAspectRatio: 0.75),
                           itemCount: rest.length,
                           itemBuilder: (_, i) => _albumCard(
                               rest[i], data.photos[rest[i].id] ?? []),
@@ -206,27 +207,51 @@ class _GalleriesTabState extends State<GalleriesTab> {
           ]),
           const SizedBox(height: 10),
           if (shots.isEmpty)
-            Container(
-              height: 140,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Kawaii.ink, width: 2.5),
+            AspectRatio(
+              aspectRatio: 1,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Kawaii.ink, width: 2.5),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(Icons.photo_library_rounded,
+                    size: 48, color: Kawaii.ink),
               ),
-              alignment: Alignment.center,
-              child: const Icon(Icons.photo_library_rounded,
-                  size: 48, color: Kawaii.ink),
             )
           else
-            SizedBox(
-              height: 140,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: shots.length,
-                separatorBuilder: (_, _) =>
-                    const SizedBox(width: 8),
-                itemBuilder: (_, i) => _stripThumb(shots[i]),
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AspectRatio(
+                  aspectRatio: 1,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Kawaii.ink, width: 2.5),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: _PhotoImage(
+                        store: widget.photoStore,
+                        r2Key: shots.first.r2Key),
+                  ),
+                ),
+                if (shots.length > 1) ...[
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 76,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: shots.length - 1,
+                      separatorBuilder: (_, _) =>
+                          const SizedBox(width: 8),
+                      itemBuilder: (_, i) =>
+                          _stripThumb(shots[i + 1], w: 72, h: 76),
+                    ),
+                  ),
+                ],
+              ],
             ),
           const SizedBox(height: 10),
           Text(p.title,
@@ -248,15 +273,15 @@ class _GalleriesTabState extends State<GalleriesTab> {
     );
   }
 
-  Widget _stripThumb(PilePhoto ph) {
+  Widget _stripThumb(PilePhoto ph, {double w = 120, double h = 140}) {
     return Stack(
       clipBehavior: Clip.none,
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(16),
           child: SizedBox(
-            width: 120,
-            height: 140,
+            width: w,
+            height: h,
             child: _PhotoImage(
                 store: widget.photoStore, r2Key: ph.r2Key),
           ),
@@ -300,7 +325,8 @@ class _GalleriesTabState extends State<GalleriesTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
+            AspectRatio(
+              aspectRatio: 1,
               child: Container(
                 decoration: BoxDecoration(
                   color: Kawaii.sky.withValues(alpha: 0.5),

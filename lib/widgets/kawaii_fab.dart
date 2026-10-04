@@ -27,9 +27,10 @@ const _metas = {
       Icons.calendar_month_rounded, Kawaii.sunny, KawaiiBtnColor.sunny),
 };
 
-/// Sticker-style contextual create button. One tab = one action:
-/// notes -> note, piles -> pile, dates -> date. Ink is outline-only;
-/// every fill is a kawaii-pop pastel.
+/// Sticker-style contextual create button: label and button fused into
+/// one extended FAB pill. One tab = one action: notes -> note,
+/// piles -> pile, dates -> date. Ink is outline-only; every fill is
+/// a kawaii-pop pastel.
 class KawaiiCreateFab extends StatelessWidget {
   final CreateKind kind;
   final VoidCallback onTap;
@@ -47,26 +48,32 @@ class KawaiiCreateFab extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            KawaiiPill(label: m.fabLabel, color: m.bg),
-            const SizedBox(width: 10),
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: m.bg,
-                shape: BoxShape.circle,
-                border: Border.all(color: edge, width: 3),
-                boxShadow: [
-                  BoxShadow(color: edge, offset: const Offset(4, 4)),
-                ],
+        child: Container(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          decoration: BoxDecoration(
+            color: m.bg,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: edge, width: 3),
+            boxShadow: [
+              BoxShadow(color: edge, offset: const Offset(4, 4)),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(m.icon, size: 26, color: Kawaii.ink),
+              const SizedBox(width: 10),
+              Text(
+                m.fabLabel,
+                style: const TextStyle(
+                  color: Kawaii.ink,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 16,
+                ),
               ),
-              alignment: Alignment.center,
-              child: Icon(m.icon, size: 28, color: Kawaii.ink),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -180,9 +187,8 @@ class _ComposerSheetState extends State<_ComposerSheet> {
   Future<void> _pickImages() async {
     if (picking) return;
     if (pileImages.length >= maxPileImages) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Max 9 photos per pile')),
-      );
+      showKawaiiToast(context, 'Max 9 photos per pile',
+          kind: KawaiiAlertKind.warning);
       return;
     }
     setState(() => picking = true);
@@ -196,9 +202,8 @@ class _ComposerSheetState extends State<_ComposerSheet> {
       }
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open gallery')),
-      );
+      showKawaiiToast(context, 'Could not open gallery',
+          kind: KawaiiAlertKind.warning);
     } finally {
       if (mounted) setState(() => picking = false);
     }
@@ -216,9 +221,8 @@ class _ComposerSheetState extends State<_ComposerSheet> {
     };
     if (!valid || _saving) {
       if (!valid) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Give it a title first')),
-        );
+        showKawaiiToast(context, 'Give it a title first',
+            kind: KawaiiAlertKind.warning);
       }
       return;
     }
@@ -247,11 +251,9 @@ class _ComposerSheetState extends State<_ComposerSheet> {
             }
           }
           if (failed > 0 && mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                  content: Text(
-                      'Pile saved — $failed photo(s) could not upload')),
-            );
+            showKawaiiToast(
+                context, 'Pile saved — $failed photo(s) could not upload',
+                kind: KawaiiAlertKind.warning);
           }
         case CreateKind.date:
           await deps.dates.create(
@@ -263,9 +265,9 @@ class _ComposerSheetState extends State<_ComposerSheet> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('StateError: ', ''))),
-      );
+      showKawaiiToast(
+          context, e.toString().replaceFirst('StateError: ', ''),
+          kind: KawaiiAlertKind.danger);
       return;
     } finally {
       if (mounted) setState(() => _saving = false);

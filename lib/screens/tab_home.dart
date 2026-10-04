@@ -29,9 +29,9 @@ class _HomeTabState extends State<HomeTab> {
       await widget.ritualsRepo.toggle(r.id, !r.done);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('StateError: ', ''))),
-      );
+      showKawaiiToast(
+          context, e.toString().replaceFirst('StateError: ', ''),
+          kind: KawaiiAlertKind.danger);
     }
   }
 

@@ -23,14 +23,13 @@ class _DatesTabState extends State<DatesTab> {
     try {
       await widget.datesRepo.remove(p.id);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('“${p.title}” removed')),
-      );
+      showKawaiiToast(context, '“${p.title}” removed',
+          kind: KawaiiAlertKind.success);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('StateError: ', ''))),
-      );
+      showKawaiiToast(
+          context, e.toString().replaceFirst('StateError: ', ''),
+          kind: KawaiiAlertKind.danger);
     }
   }
 

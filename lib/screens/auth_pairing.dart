@@ -34,6 +34,8 @@ class _PairingPageState extends State<PairingPage> {
 
   bool _joining = false;
   Space? _joined;
+  String? _freshError;
+  String? _joinError;
 
   /// True when pairing cannot work because there is no backend
   /// (local demo / solo explore). Invite codes only come from Supabase.
@@ -118,9 +120,8 @@ class _PairingPageState extends State<PairingPage> {
     final code = _invite?.code;
     if (code == null) return;
     Clipboard.setData(ClipboardData(text: code));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Code copied! Go text your person')),
-    );
+    showKawaiiToast(context, 'Code copied! Go text your person',
+        kind: KawaiiAlertKind.success);
   }
 
   Future<void> _shareCode() async {
@@ -136,21 +137,25 @@ class _PairingPageState extends State<PairingPage> {
     try {
       final invite = await _spaces.createInvite(space.id);
       if (!mounted) return;
-      setState(() => _invite = invite);
+      setState(() {
+        _invite = invite;
+        _freshError = null;
+      });
       _restartTicker();
     } catch (e) {
       debugPrint('[pairing] fresh code failed: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(friendlySpaceError(e))),
-      );
+      setState(() => _freshError = friendlySpaceError(e));
     }
   }
 
   Future<void> _join() async {
     final code = codeCtrl.text.trim();
     if (code.isEmpty || _joining) return;
-    setState(() => _joining = true);
+    setState(() {
+      _joining = true;
+      _joinError = null;
+    });
     try {
       final space = await _spaces.joinWithCode(code);
       // Drop our own pre-created empty space so no orphan lingers.
@@ -166,9 +171,7 @@ class _PairingPageState extends State<PairingPage> {
       if (mounted) setState(() => _joined = space);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(friendlySpaceError(e))),
-      );
+      setState(() => _joinError = friendlySpaceError(e));
     } finally {
       if (mounted) setState(() => _joining = false);
     }
@@ -422,6 +425,17 @@ class _PairingPageState extends State<PairingPage> {
                 color: Kawaii.ink,
                 decoration: TextDecoration.underline)),
       ),
+      if (_freshError != null) ...[
+        const SizedBox(height: 8),
+        KawaiiAlert(
+          title: 'Could not make a fresh code',
+          message: _freshError!,
+          kind: KawaiiAlertKind.danger,
+          actionLabel: 'Retry',
+          onAction: _freshCode,
+          onClose: () => setState(() => _freshError = null),
+        ),
+      ],
     ]);
   }
 
@@ -447,6 +461,16 @@ class _PairingPageState extends State<PairingPage> {
               keyboard: TextInputType.number,
               prefix: Icons.confirmation_number_outlined),
           const SizedBox(height: 12),
+          if (_joinError != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: KawaiiAlert(
+                title: "That code didn't work",
+                message: _joinError!,
+                kind: KawaiiAlertKind.danger,
+                onClose: () => setState(() => _joinError = null),
+              ),
+            ),
           if (_joined != null)
             KawaiiAlert(
               title: 'Found ${_joined!.name}!',

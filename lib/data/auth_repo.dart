@@ -11,7 +11,7 @@ import 'supa.dart';
 import '../theme/prefs.dart';
 
 /// Supabase-backed auth. Throws FriendlyAuthError (a StateError with a
-/// human message) so screens can show it directly in a SnackBar.
+/// human message) so screens can show it directly in a KawaiiAlert/toast.
 class SupabaseAuthRepo implements AuthRepo {
   SupabaseClient get _c => Supa.client;
 

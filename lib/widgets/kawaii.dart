@@ -590,3 +590,50 @@ class StickerDots extends StatelessWidget {
     );
   }
 }
+
+/// Ourspace toast: a SnackBar dressed in kawaii-pop (pastel fill per kind,
+/// ink text + outline) so transient feedback matches the app.
+/// For errors that need an action (Retry), prefer an inline [KawaiiAlert].
+void showKawaiiToast(
+  BuildContext context,
+  String message, {
+  KawaiiAlertKind kind = KawaiiAlertKind.info,
+}) {
+  final meta = switch (kind) {
+    KawaiiAlertKind.success => (Kawaii.mint, Icons.check_rounded),
+    KawaiiAlertKind.info => (Kawaii.sky, Icons.info_rounded),
+    KawaiiAlertKind.warning => (Kawaii.sunny, Icons.warning_rounded),
+    KawaiiAlertKind.danger => (Kawaii.bubble, Icons.error_rounded),
+  };
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(meta.$2, size: 20, color: Kawaii.ink),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(
+                  color: Kawaii.ink,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: meta.$1,
+        behavior: SnackBarBehavior.floating,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Kawaii.edgeOf(context), width: 2.5),
+        ),
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+}

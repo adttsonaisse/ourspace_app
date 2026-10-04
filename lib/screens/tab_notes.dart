@@ -38,9 +38,9 @@ class _NotesTabState extends State<NotesTab> {
       await widget.notesRepo.togglePin(n.id, !n.pinned);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('StateError: ', ''))),
-      );
+      showKawaiiToast(
+          context, e.toString().replaceFirst('StateError: ', ''),
+          kind: KawaiiAlertKind.danger);
     }
   }
 
@@ -49,9 +49,9 @@ class _NotesTabState extends State<NotesTab> {
       await widget.notesRepo.remove(n.id);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('StateError: ', ''))),
-      );
+      showKawaiiToast(
+          context, e.toString().replaceFirst('StateError: ', ''),
+          kind: KawaiiAlertKind.danger);
     }
   }
 

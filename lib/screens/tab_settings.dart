@@ -127,27 +127,21 @@ class _SettingsTabState extends State<SettingsTab> {
         localVersion = (await PackageInfo.fromPlatform()).version;
       } catch (_) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Could not read app version. Try again.')),
-        );
+        showKawaiiToast(context, 'Could not read app version. Try again.',
+            kind: KawaiiAlertKind.warning);
         return;
       }
       final check = await checkForAppUpdate(localVersion: localVersion);
       if (!mounted) return;
       switch (check.status) {
         case UpdateStatus.upToDate:
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(
-                    'You are on the latest version (v$localVersion)')),
-          );
+          showKawaiiToast(
+              context, 'You are on the latest version (v$localVersion)',
+              kind: KawaiiAlertKind.success);
         case UpdateStatus.failed:
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text(
-                    'Could not check for updates — check connection and retry.')),
-          );
+          showKawaiiToast(context,
+              'Could not check for updates — check connection and retry.',
+              kind: KawaiiAlertKind.warning);
         case UpdateStatus.available:
           final rel = check.release!;
           showDialog<void>(
@@ -167,10 +161,9 @@ class _SettingsTabState extends State<SettingsTab> {
                       mode: LaunchMode.externalApplication);
                 } catch (_) {
                   if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Could not open the release page')),
-                  );
+                  showKawaiiToast(
+                      context, 'Could not open the release page',
+                      kind: KawaiiAlertKind.danger);
                 }
               },
             ),
@@ -188,9 +181,8 @@ class _SettingsTabState extends State<SettingsTab> {
       await _auth.signOut();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(friendlyAuthError(e))),
-      );
+      showKawaiiToast(context, friendlyAuthError(e),
+          kind: KawaiiAlertKind.danger);
       return;
     } finally {
       if (mounted) setState(() => _leaving = false);
@@ -208,9 +200,8 @@ class _SettingsTabState extends State<SettingsTab> {
     final dates = widget.datesRepo;
     final rituals = widget.ritualsRepo;
     if (space == null || notes == null || dates == null || rituals == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pair first — then export your space')),
-      );
+      showKawaiiToast(context, 'Pair first — then export your space',
+          kind: KawaiiAlertKind.info);
       return;
     }
     if (_exporting) return;
@@ -236,9 +227,9 @@ class _SettingsTabState extends State<SettingsTab> {
           .share(ShareParams(text: buf.toString()));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('StateError: ', ''))),
-      );
+      showKawaiiToast(
+          context, e.toString().replaceFirst('StateError: ', ''),
+          kind: KawaiiAlertKind.danger);
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
@@ -266,14 +257,13 @@ class _SettingsTabState extends State<SettingsTab> {
       await _spaces.ensureProfile(username: next);
       await _loadMembers();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Username updated')),
-      );
+      showKawaiiToast(context, 'Username updated',
+          kind: KawaiiAlertKind.success);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not save — ${e.toString().replaceFirst('StateError: ', '')}')),
-      );
+      showKawaiiToast(context,
+          'Could not save — ${e.toString().replaceFirst('StateError: ', '')}',
+          kind: KawaiiAlertKind.danger);
     } finally {
       if (mounted) setState(() => _savingProfile = false);
     }

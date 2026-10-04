@@ -129,9 +129,8 @@ class _AppShellState extends State<AppShell> {
       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open the release page')),
-      );
+      showKawaiiToast(context, 'Could not open the release page',
+          kind: KawaiiAlertKind.danger);
     }
   }
 
