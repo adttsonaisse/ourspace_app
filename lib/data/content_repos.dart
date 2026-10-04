@@ -1,13 +1,12 @@
 // Content repos: Supabase (cloud) + Memory (solo/demo/tests).
 // Tabs depend on the abstracts in repos.dart and never touch Supabase.
 
-import 'dart:async';
-
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'memory_store.dart';
 import 'models/content.dart';
 import 'repos.dart';
-import 'space_repo.dart' show friendlySpaceError;
+import 'supabase_helpers.dart';
 import 'supa.dart';
 
 // ---------------- notes ----------------
@@ -16,108 +15,76 @@ class SupabaseNotesRepo implements NotesRepo {
   SupabaseClient get _c => Supa.client;
 
   @override
-  Future<List<Note>> list(String spaceId) async {
-    try {
-      final rows = await _c
-          .from('notes')
-          .select()
-          .eq('space_id', spaceId)
-          .order('created_at', ascending: false);
-      return [
-        for (final r in rows)
-          Note.fromJson(Map<String, dynamic>.from(r as Map))
-      ];
-    } catch (e) {
-      throw StateError(friendlySpaceError(e));
-    }
-  }
+  Future<List<Note>> list(String spaceId) => guard(() async {
+        final rows = await _c
+            .from('notes')
+            .select()
+            .eq('space_id', spaceId)
+            .order('created_at', ascending: false);
+        return parseRows(rows, Note.fromJson);
+      });
 
   @override
   Stream<List<Note>> watch(String spaceId) {
-    return _c
-        .from('notes')
-        .stream(primaryKey: ['id'])
-        .eq('space_id', spaceId)
-        .order('created_at', ascending: false)
-        .map((rows) => [
-              for (final r in rows)
-                Note.fromJson(Map<String, dynamic>.from(r as Map))
-            ])
-        .handleError((Object e) {
-      throw StateError(friendlySpaceError(e));
-    });
+    return watchRows(
+      _c
+          .from('notes')
+          .stream(primaryKey: ['id'])
+          .eq('space_id', spaceId)
+          .order('created_at', ascending: false),
+      Note.fromJson,
+    );
   }
 
   @override
   Future<Note> create(
       {required String spaceId,
       required String body,
-      required int colorIdx}) async {
-    try {
-      final uid = _c.auth.currentUser?.id;
-      if (uid == null) throw StateError('Log in first.');
-      final row = await _c
-          .from('notes')
-          .insert({
-            'space_id': spaceId,
-            'author_id': uid,
-            'body': body,
-            'color_idx': colorIdx,
-          })
-          .select()
-          .single();
-      return Note.fromJson(Map<String, dynamic>.from(row as Map));
-    } catch (e) {
-      throw StateError(friendlySpaceError(e));
-    }
-  }
+      required int colorIdx}) =>
+      guard(() async {
+        final uid = _c.auth.currentUser?.id;
+        if (uid == null) throw StateError('Log in first.');
+        final row = await _c
+            .from('notes')
+            .insert({
+              'space_id': spaceId,
+              'author_id': uid,
+              'body': body,
+              'color_idx': colorIdx,
+            })
+            .select()
+            .single();
+        return Note.fromJson(Map<String, dynamic>.from(row as Map));
+      });
 
   @override
-  Future<void> togglePin(String id, bool pinned) async {
-    try {
-      await _c.from('notes').update({'pinned': pinned}).eq('id', id);
-    } catch (e) {
-      throw StateError(friendlySpaceError(e));
-    }
-  }
+  Future<void> togglePin(String id, bool pinned) => guard(() async {
+        await _c.from('notes').update({'pinned': pinned}).eq('id', id);
+      });
 
   @override
-  Future<void> remove(String id) async {
-    try {
-      await _c.from('notes').delete().eq('id', id);
-    } catch (e) {
-      throw StateError(friendlySpaceError(e));
-    }
-  }
+  Future<void> remove(String id) => guard(() async {
+        await _c.from('notes').delete().eq('id', id);
+      });
 }
 
 class MemoryNotesRepo implements NotesRepo {
-  final Map<String, List<Note>> _items = {};
-  final _ctrl = StreamController<String>.broadcast();
+  final _table = MemoryTable<Note>(
+    idOf: (n) => n.id,
+    spaceOf: (n) => n.spaceId,
+    sortBy: (a, b) => b.createdAt.compareTo(a.createdAt),
+  );
   int _seq = 0;
 
   /// Test/seed helper — UI never calls this.
-  void seed(String spaceId, List<Note> notes) {
-    _items[spaceId] = List.of(notes);
-    _ctrl.add(spaceId);
-  }
-
-  List<Note> _sorted(String spaceId) {
-    final l = List<Note>.of(_items[spaceId] ?? []);
-    l.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    return l;
-  }
+  void seed(String spaceId, List<Note> notes) =>
+      _table.seed(spaceId, notes);
 
   @override
-  Future<List<Note>> list(String spaceId) async => _sorted(spaceId);
+  Future<List<Note>> list(String spaceId) => _table.list(spaceId);
 
   @override
-  Stream<List<Note>> watch(String spaceId) async* {
-    yield _sorted(spaceId);
-    await for (final sid in _ctrl.stream) {
-      if (sid == spaceId) yield _sorted(spaceId);
-    }
-  }
+  Stream<List<Note>> watch(String spaceId) => _table.watch(spaceId);
 
   @override
   Future<Note> create(
@@ -127,46 +94,33 @@ class MemoryNotesRepo implements NotesRepo {
     final n = Note(
       id: 'm${_seq++}',
       spaceId: spaceId,
-      authorId: 'demo-user',
+      authorId: kDemoUid,
       body: body,
       colorIdx: colorIdx,
       pinned: false,
       createdAt: DateTime.now(),
     );
-    (_items[spaceId] ??= []).add(n);
-    _ctrl.add(spaceId);
+    _table.put(n);
     return n;
   }
 
   @override
   Future<void> togglePin(String id, bool pinned) async {
-    for (final l in _items.values) {
-      final i = l.indexWhere((n) => n.id == id);
-      if (i >= 0) {
-        l[i] = Note(
-            id: l[i].id,
-            spaceId: l[i].spaceId,
-            authorId: l[i].authorId,
-            body: l[i].body,
-            colorIdx: l[i].colorIdx,
-            pinned: pinned,
-            createdAt: l[i].createdAt);
-        _ctrl.add(l[i].spaceId);
-        return;
-      }
-    }
+    _table.updateFirst(
+      (n) => n.id == id,
+      (n) => Note(
+          id: n.id,
+          spaceId: n.spaceId,
+          authorId: n.authorId,
+          body: n.body,
+          colorIdx: n.colorIdx,
+          pinned: pinned,
+          createdAt: n.createdAt),
+    );
   }
 
   @override
-  Future<void> remove(String id) async {
-    for (final e in _items.entries) {
-      if (e.value.any((n) => n.id == id)) {
-        e.value.removeWhere((n) => n.id == id);
-        _ctrl.add(e.key);
-        return;
-      }
-    }
-  }
+  Future<void> remove(String id) async => _table.removeById(id);
 }
 
 // ---------------- dates ----------------
@@ -175,36 +129,25 @@ class SupabaseDatesRepo implements DatesRepo {
   SupabaseClient get _c => Supa.client;
 
   @override
-  Future<List<DatePlan>> list(String spaceId) async {
-    try {
-      final rows = await _c
-          .from('date_plans')
-          .select()
-          .eq('space_id', spaceId)
-          .order('day');
-      return [
-        for (final r in rows)
-          DatePlan.fromJson(Map<String, dynamic>.from(r as Map))
-      ];
-    } catch (e) {
-      throw StateError(friendlySpaceError(e));
-    }
-  }
+  Future<List<DatePlan>> list(String spaceId) => guard(() async {
+        final rows = await _c
+            .from('date_plans')
+            .select()
+            .eq('space_id', spaceId)
+            .order('day');
+        return parseRows(rows, DatePlan.fromJson);
+      });
 
   @override
   Stream<List<DatePlan>> watch(String spaceId) {
-    return _c
-        .from('date_plans')
-        .stream(primaryKey: ['id'])
-        .eq('space_id', spaceId)
-        .order('day')
-        .map((rows) => [
-              for (final r in rows)
-                DatePlan.fromJson(Map<String, dynamic>.from(r as Map))
-            ])
-        .handleError((Object e) {
-      throw StateError(friendlySpaceError(e));
-    });
+    return watchRows(
+      _c
+          .from('date_plans')
+          .stream(primaryKey: ['id'])
+          .eq('space_id', spaceId)
+          .order('day'),
+      DatePlan.fromJson,
+    );
   }
 
   @override
@@ -213,64 +156,47 @@ class SupabaseDatesRepo implements DatesRepo {
       required String title,
       required String note,
       required String place,
-      required DateTime day}) async {
-    try {
-      final uid = _c.auth.currentUser?.id;
-      if (uid == null) throw StateError('Log in first.');
-      final row = await _c
-          .from('date_plans')
-          .insert({
-            'space_id': spaceId,
-            'title': title,
-            'note': note,
-            'place': place,
-            'day': day.toIso8601String().substring(0, 10),
-            'created_by': uid,
-          })
-          .select()
-          .single();
-      return DatePlan.fromJson(Map<String, dynamic>.from(row as Map));
-    } catch (e) {
-      throw StateError(friendlySpaceError(e));
-    }
-  }
+      required DateTime day}) =>
+      guard(() async {
+        final uid = _c.auth.currentUser?.id;
+        if (uid == null) throw StateError('Log in first.');
+        final row = await _c
+            .from('date_plans')
+            .insert({
+              'space_id': spaceId,
+              'title': title,
+              'note': note,
+              'place': place,
+              'day': day.toIso8601String().substring(0, 10),
+              'created_by': uid,
+            })
+            .select()
+            .single();
+        return DatePlan.fromJson(Map<String, dynamic>.from(row as Map));
+      });
 
   @override
-  Future<void> remove(String id) async {
-    try {
-      await _c.from('date_plans').delete().eq('id', id);
-    } catch (e) {
-      throw StateError(friendlySpaceError(e));
-    }
-  }
+  Future<void> remove(String id) => guard(() async {
+        await _c.from('date_plans').delete().eq('id', id);
+      });
 }
 
 class MemoryDatesRepo implements DatesRepo {
-  final Map<String, List<DatePlan>> _items = {};
-  final _ctrl = StreamController<String>.broadcast();
+  final _table = MemoryTable<DatePlan>(
+    idOf: (p) => p.id,
+    spaceOf: (p) => p.spaceId,
+    sortBy: (a, b) => a.day.compareTo(b.day),
+  );
   int _seq = 0;
 
-  void seed(String spaceId, List<DatePlan> plans) {
-    _items[spaceId] = List.of(plans);
-    _ctrl.add(spaceId);
-  }
-
-  List<DatePlan> _sorted(String spaceId) {
-    final l = List<DatePlan>.of(_items[spaceId] ?? []);
-    l.sort((a, b) => a.day.compareTo(b.day));
-    return l;
-  }
+  void seed(String spaceId, List<DatePlan> plans) =>
+      _table.seed(spaceId, plans);
 
   @override
-  Future<List<DatePlan>> list(String spaceId) async => _sorted(spaceId);
+  Future<List<DatePlan>> list(String spaceId) => _table.list(spaceId);
 
   @override
-  Stream<List<DatePlan>> watch(String spaceId) async* {
-    yield _sorted(spaceId);
-    await for (final sid in _ctrl.stream) {
-      if (sid == spaceId) yield _sorted(spaceId);
-    }
-  }
+  Stream<List<DatePlan>> watch(String spaceId) => _table.watch(spaceId);
 
   @override
   Future<DatePlan> create(
@@ -286,24 +212,15 @@ class MemoryDatesRepo implements DatesRepo {
       note: note,
       place: place,
       day: day,
-      createdBy: 'demo-user',
+      createdBy: kDemoUid,
       createdAt: DateTime.now(),
     );
-    (_items[spaceId] ??= []).add(p);
-    _ctrl.add(spaceId);
+    _table.put(p);
     return p;
   }
 
   @override
-  Future<void> remove(String id) async {
-    for (final e in _items.entries) {
-      if (e.value.any((p) => p.id == id)) {
-        e.value.removeWhere((p) => p.id == id);
-        _ctrl.add(e.key);
-        return;
-      }
-    }
-  }
+  Future<void> remove(String id) async => _table.removeById(id);
 }
 
 // ---------------- rituals ----------------
@@ -312,115 +229,83 @@ class SupabaseRitualsRepo implements RitualsRepo {
   SupabaseClient get _c => Supa.client;
 
   @override
-  Future<List<Ritual>> list(String spaceId) async {
-    try {
-      final rows = await _c
-          .from('rituals')
-          .select()
-          .eq('space_id', spaceId)
-          .order('sort');
-      return [
-        for (final r in rows)
-          Ritual.fromJson(Map<String, dynamic>.from(r as Map))
-      ];
-    } catch (e) {
-      throw StateError(friendlySpaceError(e));
-    }
-  }
+  Future<List<Ritual>> list(String spaceId) => guard(() async {
+        final rows = await _c
+            .from('rituals')
+            .select()
+            .eq('space_id', spaceId)
+            .order('sort');
+        return parseRows(rows, Ritual.fromJson);
+      });
 
   @override
   Stream<List<Ritual>> watch(String spaceId) {
-    return _c
-        .from('rituals')
-        .stream(primaryKey: ['id'])
-        .eq('space_id', spaceId)
-        .order('sort')
-        .map((rows) => [
-              for (final r in rows)
-                Ritual.fromJson(Map<String, dynamic>.from(r as Map))
-            ])
-        .handleError((Object e) {
-      throw StateError(friendlySpaceError(e));
-    });
+    return watchRows(
+      _c
+          .from('rituals')
+          .stream(primaryKey: ['id'])
+          .eq('space_id', spaceId)
+          .order('sort'),
+      Ritual.fromJson,
+    );
   }
 
   @override
   Future<Ritual> create(
       {required String spaceId,
       required String title,
-      required int colorIdx}) async {
-    try {
-      final existing = await list(spaceId);
-      final row = await _c
-          .from('rituals')
-          .insert({
-            'space_id': spaceId,
-            'title': title,
-            'color_idx': colorIdx,
-            'sort': existing.length,
-          })
-          .select()
-          .single();
-      return Ritual.fromJson(Map<String, dynamic>.from(row as Map));
-    } catch (e) {
-      throw StateError(friendlySpaceError(e));
-    }
-  }
+      required int colorIdx}) =>
+      guard(() async {
+        final existing = await list(spaceId);
+        final row = await _c
+            .from('rituals')
+            .insert({
+              'space_id': spaceId,
+              'title': title,
+              'color_idx': colorIdx,
+              'sort': existing.length,
+            })
+            .select()
+            .single();
+        return Ritual.fromJson(Map<String, dynamic>.from(row as Map));
+      });
 
   @override
-  Future<void> toggle(String id, bool done) async {
-    try {
-      await _c.from('rituals').update(
-          {'done': done, 'updated_at': DateTime.now().toIso8601String()}).eq(
-          'id', id);
-    } catch (e) {
-      throw StateError(friendlySpaceError(e));
-    }
-  }
+  Future<void> toggle(String id, bool done) => guard(() async {
+        await _c.from('rituals').update(
+            {'done': done, 'updated_at': DateTime.now().toIso8601String()}).eq(
+            'id', id);
+      });
 
   @override
-  Future<void> remove(String id) async {
-    try {
-      await _c.from('rituals').delete().eq('id', id);
-    } catch (e) {
-      throw StateError(friendlySpaceError(e));
-    }
-  }
+  Future<void> remove(String id) => guard(() async {
+        await _c.from('rituals').delete().eq('id', id);
+      });
 }
 
 class MemoryRitualsRepo implements RitualsRepo {
-  final Map<String, List<Ritual>> _items = {};
-  final _ctrl = StreamController<String>.broadcast();
+  final _table = MemoryTable<Ritual>(
+    idOf: (r) => r.id,
+    spaceOf: (r) => r.spaceId,
+    sortBy: (a, b) => a.sort.compareTo(b.sort),
+  );
   int _seq = 0;
 
-  void seed(String spaceId, List<Ritual> rituals) {
-    _items[spaceId] = List.of(rituals);
-    _ctrl.add(spaceId);
-  }
-
-  List<Ritual> _sorted(String spaceId) {
-    final l = List<Ritual>.of(_items[spaceId] ?? []);
-    l.sort((a, b) => a.sort.compareTo(b.sort));
-    return l;
-  }
+  void seed(String spaceId, List<Ritual> rituals) =>
+      _table.seed(spaceId, rituals);
 
   @override
-  Future<List<Ritual>> list(String spaceId) async => _sorted(spaceId);
+  Future<List<Ritual>> list(String spaceId) => _table.list(spaceId);
 
   @override
-  Stream<List<Ritual>> watch(String spaceId) async* {
-    yield _sorted(spaceId);
-    await for (final sid in _ctrl.stream) {
-      if (sid == spaceId) yield _sorted(spaceId);
-    }
-  }
+  Stream<List<Ritual>> watch(String spaceId) => _table.watch(spaceId);
 
   @override
   Future<Ritual> create(
       {required String spaceId,
       required String title,
       required int colorIdx}) async {
-    final l = (_items[spaceId] ??= []);
+    final l = await _table.list(spaceId);
     final r = Ritual(
       id: 'm${_seq++}',
       spaceId: spaceId,
@@ -430,41 +315,27 @@ class MemoryRitualsRepo implements RitualsRepo {
       sort: l.length,
       updatedAt: DateTime.now(),
     );
-    l.add(r);
-    _ctrl.add(spaceId);
+    _table.put(r);
     return r;
   }
 
   @override
   Future<void> toggle(String id, bool done) async {
-    for (final e in _items.entries) {
-      final i = e.value.indexWhere((r) => r.id == id);
-      if (i >= 0) {
-        final o = e.value[i];
-        e.value[i] = Ritual(
-            id: o.id,
-            spaceId: o.spaceId,
-            title: o.title,
-            colorIdx: o.colorIdx,
-            done: done,
-            sort: o.sort,
-            updatedAt: DateTime.now());
-        _ctrl.add(e.key);
-        return;
-      }
-    }
+    _table.updateFirst(
+      (r) => r.id == id,
+      (o) => Ritual(
+          id: o.id,
+          spaceId: o.spaceId,
+          title: o.title,
+          colorIdx: o.colorIdx,
+          done: done,
+          sort: o.sort,
+          updatedAt: DateTime.now()),
+    );
   }
 
   @override
-  Future<void> remove(String id) async {
-    for (final e in _items.entries) {
-      if (e.value.any((r) => r.id == id)) {
-        e.value.removeWhere((r) => r.id == id);
-        _ctrl.add(e.key);
-        return;
-      }
-    }
-  }
+  Future<void> remove(String id) async => _table.removeById(id);
 }
 
 // ---------------- piles (rows in M4, photos in M5) ----------------
@@ -473,141 +344,107 @@ class SupabasePilesRepo implements PilesRepo {
   SupabaseClient get _c => Supa.client;
 
   @override
-  Future<List<Pile>> list(String spaceId) async {
-    try {
-      final rows = await _c
-          .from('piles')
-          .select()
-          .eq('space_id', spaceId)
-          .order('created_at', ascending: false);
-      return [
-        for (final r in rows)
-          Pile.fromJson(Map<String, dynamic>.from(r as Map))
-      ];
-    } catch (e) {
-      throw StateError(friendlySpaceError(e));
-    }
-  }
+  Future<List<Pile>> list(String spaceId) => guard(() async {
+        final rows = await _c
+            .from('piles')
+            .select()
+            .eq('space_id', spaceId)
+            .order('created_at', ascending: false);
+        return parseRows(rows, Pile.fromJson);
+      });
 
   @override
   Stream<List<Pile>> watch(String spaceId) {
-    return _c
-        .from('piles')
-        .stream(primaryKey: ['id'])
-        .eq('space_id', spaceId)
-        .order('created_at', ascending: false)
-        .map((rows) => [
-              for (final r in rows)
-                Pile.fromJson(Map<String, dynamic>.from(r as Map))
-            ])
-        .handleError((Object e) {
-      throw StateError(friendlySpaceError(e));
-    });
+    return watchRows(
+      _c
+          .from('piles')
+          .stream(primaryKey: ['id'])
+          .eq('space_id', spaceId)
+          .order('created_at', ascending: false),
+      Pile.fromJson,
+    );
   }
 
   @override
   Future<Pile> create(
       {required String spaceId,
       required String title,
-      required String location}) async {
-    try {
-      final uid = _c.auth.currentUser?.id;
-      if (uid == null) throw StateError('Log in first.');
-      final row = await _c
-          .from('piles')
-          .insert({
-            'space_id': spaceId,
-            'title': title,
-            'location': location,
-            'created_by': uid,
-          })
-          .select()
-          .single();
-      return Pile.fromJson(Map<String, dynamic>.from(row as Map));
-    } catch (e) {
-      throw StateError(friendlySpaceError(e));
-    }
-  }
+      required String location}) =>
+      guard(() async {
+        final uid = _c.auth.currentUser?.id;
+        if (uid == null) throw StateError('Log in first.');
+        final row = await _c
+            .from('piles')
+            .insert({
+              'space_id': spaceId,
+              'title': title,
+              'location': location,
+              'created_by': uid,
+            })
+            .select()
+            .single();
+        return Pile.fromJson(Map<String, dynamic>.from(row as Map));
+      });
 
   @override
-  Future<List<PilePhoto>> photos(String pileId) async {
-    try {
-      final rows = await _c
-          .from('pile_photos')
-          .select()
-          .eq('pile_id', pileId)
-          .order('created_at');
-      return [
-        for (final r in rows)
-          PilePhoto.fromJson(Map<String, dynamic>.from(r as Map))
-      ];
-    } catch (e) {
-      throw StateError(friendlySpaceError(e));
-    }
-  }
+  Future<List<PilePhoto>> photos(String pileId) => guard(() async {
+        final rows = await _c
+            .from('pile_photos')
+            .select()
+            .eq('pile_id', pileId)
+            .order('created_at');
+        return parseRows(rows, PilePhoto.fromJson);
+      });
 
   @override
   Future<PilePhoto> addPhoto(
-      {required String pileId, required String r2Key}) async {
-    try {
-      final uid = _c.auth.currentUser?.id;
-      if (uid == null) throw StateError('Log in first.');
-      final row = await _c
-          .from('pile_photos')
-          .insert({
-            'pile_id': pileId,
-            'r2_key': r2Key,
-            'created_by': uid,
-          })
-          .select()
-          .single();
-      return PilePhoto.fromJson(Map<String, dynamic>.from(row as Map));
-    } catch (e) {
-      throw StateError(friendlySpaceError(e));
-    }
-  }
+          {required String pileId, required String r2Key}) =>
+      guard(() async {
+        final uid = _c.auth.currentUser?.id;
+        if (uid == null) throw StateError('Log in first.');
+        final row = await _c
+            .from('pile_photos')
+            .insert({
+              'pile_id': pileId,
+              'r2_key': r2Key,
+              'created_by': uid,
+            })
+            .select()
+            .single();
+        return PilePhoto.fromJson(Map<String, dynamic>.from(row as Map));
+      });
 
   @override
-  Future<void> removePhoto(String id) async {
-    try {
-      await _c.from('pile_photos').delete().eq('id', id);
-    } catch (e) {
-      throw StateError(friendlySpaceError(e));
-    }
-  }
+  Future<void> removePhoto(String id) => guard(() async {
+        await _c.from('pile_photos').delete().eq('id', id);
+      });
 
   @override
-  Future<void> removePile(String id) async {
-    try {
-      await _c.from('piles').delete().eq('id', id);
-    } catch (e) {
-      throw StateError(friendlySpaceError(e));
-    }
-  }
+  Future<void> removePile(String id) => guard(() async {
+        await _c.from('piles').delete().eq('id', id);
+      });
 }
 
 class MemoryPilesRepo implements PilesRepo {
-  final Map<String, List<Pile>> _items = {};
+  final _table = MemoryTable<Pile>(
+    idOf: (p) => p.id,
+    spaceOf: (p) => p.spaceId,
+  );
   final Map<String, List<PilePhoto>> _photos = {};
-  final _ctrl = StreamController<String>.broadcast();
   int _seq = 0;
 
-  void seed(String spaceId, List<Pile> piles) {
-    _items[spaceId] = List.of(piles);
-    _ctrl.add(spaceId);
+  void seed(String spaceId, List<Pile> piles) =>
+      _table.seed(spaceId, piles);
+
+  @override
+  Future<List<Pile>> list(String spaceId) async {
+    // Newest first: insertion order is oldest-first (see create).
+    return _table.sorted(spaceId).reversed.toList();
   }
 
   @override
-  Future<List<Pile>> list(String spaceId) async =>
-      List.of(_items[spaceId] ?? []);
-
-  @override
-  Stream<List<Pile>> watch(String spaceId) async* {
-    yield List.of(_items[spaceId] ?? []);
-    await for (final sid in _ctrl.stream) {
-      if (sid == spaceId) yield List.of(_items[spaceId] ?? []);
-    }
-  }
+  Stream<List<Pile>> watch(String spaceId) =>
+      _table.watch(spaceId).map((l) => l.reversed.toList());
 
   @override
   Future<Pile> create(
@@ -619,11 +456,10 @@ class MemoryPilesRepo implements PilesRepo {
       spaceId: spaceId,
       title: title,
       location: location,
-      createdBy: 'demo-user',
+      createdBy: kDemoUid,
       createdAt: DateTime.now(),
     );
-    (_items[spaceId] ??= []).insert(0, p);
-    _ctrl.add(spaceId);
+    _table.put(p);
     return p;
   }
 
@@ -638,7 +474,7 @@ class MemoryPilesRepo implements PilesRepo {
       id: 'm${_seq++}',
       pileId: pileId,
       r2Key: r2Key,
-      createdBy: 'demo-user',
+      createdBy: kDemoUid,
       createdAt: DateTime.now(),
     );
     (_photos[pileId] ??= []).add(ph);
@@ -647,30 +483,25 @@ class MemoryPilesRepo implements PilesRepo {
 
   @override
   Future<void> removePhoto(String id) async {
-    for (final l in _photos.values) {
-      l.removeWhere((p) => p.id == id);
+    String? pileId;
+    for (final e in _photos.entries) {
+      if (e.value.any((p) => p.id == id)) {
+        e.value.removeWhere((p) => p.id == id);
+        pileId = e.key;
+        break;
+      }
     }
+    if (pileId == null) return;
+    final spaceId = _table.spaceOfId(pileId);
+    if (spaceId != null) _table.touch(spaceId);
   }
 
   @override
-  Future<void> removePile(String id) async {
-    for (final e in _items.entries) {
-      if (e.value.any((p) => p.id == id)) {
-        e.value.removeWhere((p) => p.id == id);
-        _ctrl.add(e.key);
-        return;
-      }
-    }
-  }
+  Future<void> removePile(String id) async => _table.removeById(id);
 }
 
 // ---------------- resolvers ----------------
-
-NotesRepo resolveNotesRepo() =>
-    Supa.ready ? SupabaseNotesRepo() : MemoryNotesRepo();
-DatesRepo resolveDatesRepo() =>
-    Supa.ready ? SupabaseDatesRepo() : MemoryDatesRepo();
-RitualsRepo resolveRitualsRepo() =>
-    Supa.ready ? SupabaseRitualsRepo() : MemoryRitualsRepo();
-PilesRepo resolvePilesRepo() =>
-    Supa.ready ? SupabasePilesRepo() : MemoryPilesRepo();
+// Moved to backend.dart: resolveAuthRepo/resolveSpaceRepo/
+// resolveNotesRepo/resolveDatesRepo/resolveRitualsRepo/resolvePilesRepo
+// delegate to the shared Backend singleton. Kept importable from here
+// via backend.dart — do not re-add them (circular import).

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../data/backend_errors.dart';
 import '../data/format.dart';
 import '../data/models/content.dart';
 import '../data/models/space.dart';
@@ -22,15 +23,14 @@ class HomeTab extends StatefulWidget {
 }
 
 class _HomeTabState extends State<HomeTab> {
-  String get _spaceId => widget.space?.id ?? 'local';
+  String get _spaceId => widget.space?.id ?? kDemoSpaceId;
 
   Future<void> _toggle(Ritual r) async {
     try {
       await widget.ritualsRepo.toggle(r.id, !r.done);
     } catch (e) {
       if (!mounted) return;
-      showKawaiiToast(
-          context, e.toString().replaceFirst('StateError: ', ''),
+      showKawaiiToast(context, userMessage(e),
           kind: KawaiiAlertKind.danger);
     }
   }
@@ -239,8 +239,7 @@ class _HomeTabState extends State<HomeTab> {
           if (snap.hasError) {
             return KawaiiAlert(
               title: 'Could not load rituals',
-              message:
-                  snap.error.toString().replaceFirst('StateError: ', ''),
+              message: userMessage(snap.error!),
               kind: KawaiiAlertKind.danger,
               actionLabel: 'Retry',
               onAction: () => setState(() {}),

@@ -5,10 +5,11 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../data/app_update_repo.dart';
 import '../data/auth_repo.dart';
+import '../data/backend.dart';
+import '../data/backend_errors.dart';
 import '../data/format.dart';
 import '../data/models/space.dart';
 import '../data/repos.dart';
-import '../data/space_repo.dart';
 import '../theme/kawaii.dart';
 import '../theme/prefs.dart';
 import '../widgets/app_update_dialog.dart';
@@ -49,7 +50,7 @@ class _SettingsTabState extends State<SettingsTab> {
   String get _uid {
     final id = _auth.currentUserId;
     if (id != null) return id;
-    return 'demo-user';
+    return kDemoUid;
   }
 
   String get _myName {
@@ -227,8 +228,7 @@ class _SettingsTabState extends State<SettingsTab> {
           .share(ShareParams(text: buf.toString()));
     } catch (e) {
       if (!mounted) return;
-      showKawaiiToast(
-          context, e.toString().replaceFirst('StateError: ', ''),
+      showKawaiiToast(context, userMessage(e),
           kind: KawaiiAlertKind.danger);
     } finally {
       if (mounted) setState(() => _exporting = false);
@@ -261,8 +261,7 @@ class _SettingsTabState extends State<SettingsTab> {
           kind: KawaiiAlertKind.success);
     } catch (e) {
       if (!mounted) return;
-      showKawaiiToast(context,
-          'Could not save — ${e.toString().replaceFirst('StateError: ', '')}',
+      showKawaiiToast(context, 'Could not save — ${userMessage(e)}',
           kind: KawaiiAlertKind.danger);
     } finally {
       if (mounted) setState(() => _savingProfile = false);

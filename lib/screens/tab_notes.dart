@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../data/backend_errors.dart';
 import '../data/format.dart';
 import '../data/models/content.dart';
 import '../data/repos.dart';
@@ -38,8 +39,7 @@ class _NotesTabState extends State<NotesTab> {
       await widget.notesRepo.togglePin(n.id, !n.pinned);
     } catch (e) {
       if (!mounted) return;
-      showKawaiiToast(
-          context, e.toString().replaceFirst('StateError: ', ''),
+      showKawaiiToast(context, userMessage(e),
           kind: KawaiiAlertKind.danger);
     }
   }
@@ -49,8 +49,7 @@ class _NotesTabState extends State<NotesTab> {
       await widget.notesRepo.remove(n.id);
     } catch (e) {
       if (!mounted) return;
-      showKawaiiToast(
-          context, e.toString().replaceFirst('StateError: ', ''),
+      showKawaiiToast(context, userMessage(e),
           kind: KawaiiAlertKind.danger);
     }
   }
@@ -89,9 +88,7 @@ class _NotesTabState extends State<NotesTab> {
               if (snap.hasError) {
                 return KawaiiAlert(
                   title: 'Could not load notes',
-                  message: snap.error
-                      .toString()
-                      .replaceFirst('StateError: ', ''),
+                  message: userMessage(snap.error!),
                   kind: KawaiiAlertKind.danger,
                   actionLabel: 'Retry',
                   onAction: () => setState(() {}),

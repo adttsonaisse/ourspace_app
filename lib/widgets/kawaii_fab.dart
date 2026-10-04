@@ -2,8 +2,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import '../data/photo_store.dart';
-import '../data/repos.dart';
+import '../data/backend_errors.dart';
+import '../data/composer.dart';
 import '../theme/kawaii.dart';
 import 'kawaii.dart';
 
@@ -82,17 +82,11 @@ class KawaiiCreateFab extends StatelessWidget {
 
 class ComposerDeps {
   final String spaceId;
-  final NotesRepo notes;
-  final PilesRepo piles;
-  final DatesRepo dates;
-  final PhotoStore photos;
+  final AppComposer composer;
   final VoidCallback onCreated;
   const ComposerDeps(
       {required this.spaceId,
-      required this.notes,
-      required this.piles,
-      required this.dates,
-      required this.photos,
+      required this.composer,
       required this.onCreated});
 }
 
@@ -230,33 +224,23 @@ class _ComposerSheetState extends State<_ComposerSheet> {
     try {
       switch (kind) {
         case CreateKind.note:
-          await deps.notes.create(
+          await deps.composer.createNote(
               spaceId: deps.spaceId,
               body: _noteCtrl.text.trim(),
               colorIdx: noteColor);
         case CreateKind.pile:
-          final pile = await deps.piles.create(
+          final report = await deps.composer.createPile(
               spaceId: deps.spaceId,
               title: _pileTitleCtrl.text.trim(),
-              location: _pileLocCtrl.text.trim());
-          var failed = 0;
-          for (final img in pileImages) {
-            try {
-              final key = await deps.photos.upload(
-                  spaceId: deps.spaceId, pileId: pile.id, file: img);
-              await deps.piles
-                  .addPhoto(pileId: pile.id, r2Key: key);
-            } catch (_) {
-              failed++;
-            }
-          }
-          if (failed > 0 && mounted) {
-            showKawaiiToast(
-                context, 'Pile saved — $failed photo(s) could not upload',
+              location: _pileLocCtrl.text.trim(),
+              images: pileImages);
+          if (report.failed > 0 && mounted) {
+            showKawaiiToast(context,
+                'Pile saved — ${report.failed} photo(s) could not upload',
                 kind: KawaiiAlertKind.warning);
           }
         case CreateKind.date:
-          await deps.dates.create(
+          await deps.composer.createDate(
               spaceId: deps.spaceId,
               title: _dateTitleCtrl.text.trim(),
               note: _dateNoteCtrl.text.trim(),
@@ -265,8 +249,7 @@ class _ComposerSheetState extends State<_ComposerSheet> {
       }
     } catch (e) {
       if (!mounted) return;
-      showKawaiiToast(
-          context, e.toString().replaceFirst('StateError: ', ''),
+      showKawaiiToast(context, userMessage(e),
           kind: KawaiiAlertKind.danger);
       return;
     } finally {

@@ -4,6 +4,12 @@
 import 'models/space.dart';
 import 'models/content.dart';
 
+/// Local identity used across every demo-mode fake. Single source so the
+/// sentinel values never drift between modules (values are stable API:
+/// tests and persisted prefs depend on them).
+const kDemoUid = 'demo-user';
+const kDemoSpaceId = 'local';
+
 abstract class AuthRepo {
   Future<void> signUp(String email, String password, {String? username});
   Future<void> signIn(String email, String password);

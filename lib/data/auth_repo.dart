@@ -2,11 +2,12 @@
 // inject fakes and prod resolves Supabase when configured.
 
 import 'dart:async';
-import 'dart:io';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'backend_errors.dart';
 import 'repos.dart';
+import 'supabase_helpers.dart';
 import 'supa.dart';
 import '../theme/prefs.dart';
 
@@ -17,38 +18,28 @@ class SupabaseAuthRepo implements AuthRepo {
 
   @override
   Future<void> signUp(String email, String password,
-      {String? username}) async {
-    try {
-      await _c.auth.signUp(
-        email: email.trim(),
-        password: password,
-        data: (username ?? '').trim().isEmpty
-            ? null
-            : {'username': username!.trim()},
+          {String? username}) =>
+      guard(
+        () => _c.auth.signUp(
+          email: email.trim(),
+          password: password,
+          data: (username ?? '').trim().isEmpty
+              ? null
+              : {'username': username!.trim()},
+        ),
+        friendlyAuthError,
       );
-    } catch (e) {
-      throw StateError(friendlyAuthError(e));
-    }
-  }
 
   @override
-  Future<void> signIn(String email, String password) async {
-    try {
-      await _c.auth.signInWithPassword(
-          email: email.trim(), password: password);
-    } catch (e) {
-      throw StateError(friendlyAuthError(e));
-    }
-  }
+  Future<void> signIn(String email, String password) => guard(
+        () => _c.auth.signInWithPassword(
+            email: email.trim(), password: password),
+        friendlyAuthError,
+      );
 
   @override
-  Future<void> signOut() async {
-    try {
-      await _c.auth.signOut();
-    } catch (e) {
-      throw StateError(friendlyAuthError(e));
-    }
-  }
+  Future<void> signOut() =>
+      guard(() => _c.auth.signOut(), friendlyAuthError);
 
   @override
   String? get currentUserId => _c.auth.currentUser?.id;
@@ -86,7 +77,7 @@ class DemoAuthRepo implements AuthRepo {
   Future<void> signUp(String email, String password,
       {String? username}) async {
     await Future<void>.delayed(const Duration(milliseconds: 200));
-    _uid = 'demo-user';
+    _uid = kDemoUid;
     _username = (username ?? '').trim().isEmpty ? null : username!.trim();
     _email = email.trim().isEmpty ? null : email.trim();
     _ctrl.add(_uid);
@@ -98,7 +89,7 @@ class DemoAuthRepo implements AuthRepo {
   @override
   Future<void> signIn(String email, String password) async {
     await Future<void>.delayed(const Duration(milliseconds: 200));
-    _uid = 'demo-user';
+    _uid = kDemoUid;
     _email = email.trim().isEmpty ? _email : email.trim();
     _ctrl.add(_uid);
     // Fire-and-forget: see signUp.
@@ -153,29 +144,14 @@ class DemoAuthRepo implements AuthRepo {
   Stream<String?> watchAuth() => _ctrl.stream;
 }
 
-/// Demo auth shared by every screen (mirrors the Supabase singleton
-/// client): login on one page must be visible in shell/settings.
-DemoAuthRepo? _demoAuthSingleton;
-
-/// Prod resolves Supabase when configured, demo otherwise.
-/// Demo resolves to a shared instance so the username/session from the
-/// login page propagates to the shell and settings instead of falling
-/// back to 'you'. Direct `DemoAuthRepo()` constructors stay independent
-/// for tests.
-AuthRepo resolveAuthRepo() {
-  if (Supa.ready) return SupabaseAuthRepo();
-  return _demoAuthSingleton ??= DemoAuthRepo();
-}
+/// Prod resolves Supabase when configured, demo otherwise, through the
+/// shared Backend singleton (see backend.dart): login on one page is
+/// visible in shell/settings instead of falling back to 'you'.
+/// Direct `DemoAuthRepo()` constructors stay independent for tests.
 
 String friendlyAuthError(Object e) {
-  if (e is SocketException) {
-    return 'No connection. Check internet and retry.';
-  }
-  if (e is TimeoutException ||
-      e.toString().toLowerCase().contains('timed out') ||
-      e.toString().toLowerCase().contains('timeout')) {
-    return 'No connection. Check internet and retry.';
-  }
+  final common = commonBackendMessage(e);
+  if (common != null) return common;
   if (e is AuthException) {
     final m = e.message.toLowerCase();
     if (m.contains('already registered') || m.contains('already exists')) {

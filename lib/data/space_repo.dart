@@ -3,13 +3,14 @@
 // invite expiry 24h, single use — enforced atomically in join_with_code.
 
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'backend_errors.dart';
 import 'models/space.dart';
 import 'repos.dart';
+import 'supabase_helpers.dart';
 import 'supa.dart';
 
 class SupabaseSpaceRepo implements SpaceRepo {
@@ -17,90 +18,76 @@ class SupabaseSpaceRepo implements SpaceRepo {
   String? get _uid => _c.auth.currentUser?.id;
 
   @override
-  Future<Space?> mySpace() async {
+  Future<Space?> mySpace() {
     final uid = _uid;
-    if (uid == null) return null;
-    final mem = await _c
-        .from('space_members')
-        .select('space_id')
-        .eq('user_id', uid)
-        .limit(1);
-    if (mem.isEmpty) return null;
-    final sid = (mem.first as Map)['space_id'] as String;
-    final sp =
-        await _c.from('spaces').select().eq('id', sid).limit(1);
-    if (sp.isEmpty) return null;
-    return Space.fromJson(Map<String, dynamic>.from(sp.first as Map));
-  }
-
-  @override
-  Future<Space> createSpace(String name) async {
-    try {
-      final uid = _uid;
-      if (uid == null) throw StateError('Log in first.');
-      final row = await _c
-          .from('spaces')
-          .insert({'name': name, 'created_by': uid}).select()
-          .single();
-      final space =
-          Space.fromJson(Map<String, dynamic>.from(row as Map));
-      await _c.from('space_members')
-          .insert({'space_id': space.id, 'user_id': uid});
-      return space;
-    } catch (e) {
-      throw StateError(friendlySpaceError(e));
-    }
-  }
-
-  @override
-  Future<InviteCode> createInvite(String spaceId) async {
-    try {
-      final row =
-          await _c.rpc('create_invite', params: {'sid': spaceId});
-      return parseInviteCodeResponse(row);
-    } catch (e) {
-      throw StateError(friendlySpaceError(e));
-    }
-  }
-
-  @override
-  Future<Space> joinWithCode(String code) async {
-    try {
-      final sid = parseRpcUuid(await _c
-          .rpc('join_with_code', params: {'p_code': code.trim()}));
-      final row = await _c
-          .from('spaces')
-          .select()
-          .eq('id', sid)
-          .single();
-      return Space.fromJson(Map<String, dynamic>.from(row as Map));
-    } catch (e) {
-      throw StateError(friendlySpaceError(e));
-    }
-  }
-
-  @override
-  Future<void> leave(String spaceId) async {
-    try {
-      final uid = _uid;
-      if (uid == null) return;
-      await _c
+    if (uid == null) return Future.value();
+    return guard(() async {
+      final mem = await _c
           .from('space_members')
-          .delete()
-          .eq('space_id', spaceId)
-          .eq('user_id', uid);
-      final rest = await _c
-          .from('space_members')
-          .select('user_id')
-          .eq('space_id', spaceId)
+          .select('space_id')
+          .eq('user_id', uid)
           .limit(1);
-      if (rest.isEmpty) {
-        await _c.from('spaces').delete().eq('id', spaceId);
-      }
-    } catch (e) {
-      throw StateError(friendlySpaceError(e));
-    }
+      if (mem.isEmpty) return null;
+      final sid = (mem.first as Map)['space_id'] as String;
+      final sp =
+          await _c.from('spaces').select().eq('id', sid).limit(1);
+      if (sp.isEmpty) return null;
+      return Space.fromJson(Map<String, dynamic>.from(sp.first as Map));
+    });
   }
+
+  @override
+  Future<Space> createSpace(String name) => guard(() async {
+        final uid = _uid;
+        if (uid == null) throw StateError('Log in first.');
+        final row = await _c
+            .from('spaces')
+            .insert({'name': name, 'created_by': uid}).select()
+            .single();
+        final space =
+            Space.fromJson(Map<String, dynamic>.from(row as Map));
+        await _c.from('space_members')
+            .insert({'space_id': space.id, 'user_id': uid});
+        return space;
+      });
+
+  @override
+  Future<InviteCode> createInvite(String spaceId) => guard(() async {
+        final row =
+            await _c.rpc('create_invite', params: {'sid': spaceId});
+        return parseInviteCodeResponse(row);
+      });
+
+  @override
+  Future<Space> joinWithCode(String code) => guard(() async {
+        final sid = parseRpcUuid(await _c
+            .rpc('join_with_code', params: {'p_code': code.trim()}));
+        final row = await _c
+            .from('spaces')
+            .select()
+            .eq('id', sid)
+            .single();
+        return Space.fromJson(Map<String, dynamic>.from(row as Map));
+      });
+
+  @override
+  Future<void> leave(String spaceId) => guard(() async {
+        final uid = _uid;
+        if (uid == null) return;
+        await _c
+            .from('space_members')
+            .delete()
+            .eq('space_id', spaceId)
+            .eq('user_id', uid);
+        final rest = await _c
+            .from('space_members')
+            .select('user_id')
+            .eq('space_id', spaceId)
+            .limit(1);
+        if (rest.isEmpty) {
+          await _c.from('spaces').delete().eq('id', spaceId);
+        }
+      });
 
   @override
   Stream<Space?> watchMySpace() =>
@@ -179,7 +166,7 @@ class SupabaseSpaceRepo implements SpaceRepo {
 class DemoSpaceRepo implements SpaceRepo {
   Space? _space;
   final _ctrl = StreamController<Space?>.broadcast();
-  final Map<String, String> _usernames = {'demo-user': 'you'};
+  final Map<String, String> _usernames = {kDemoUid: 'you'};
   List<MemberProfile>? _seededMembers;
 
   @override
@@ -190,7 +177,7 @@ class DemoSpaceRepo implements SpaceRepo {
     _space = Space(
       id: 'demo-space',
       name: name.isEmpty ? 'Our space' : name,
-      createdBy: 'demo-user',
+      createdBy: kDemoUid,
       createdAt: DateTime.now(),
     );
     _ctrl.add(_space);
@@ -229,7 +216,7 @@ class DemoSpaceRepo implements SpaceRepo {
   @override
   Future<void> ensureProfile({String? username}) async {
     final name = (username ?? '').trim();
-    if (name.isNotEmpty) _usernames['demo-user'] = name;
+    if (name.isNotEmpty) _usernames[kDemoUid] = name;
     _seededMembers = null;
   }
 
@@ -239,15 +226,12 @@ class DemoSpaceRepo implements SpaceRepo {
     if (_seededMembers != null) return List.of(_seededMembers!);
     return [
       MemberProfile(
-        userId: 'demo-user',
-        username: _usernames['demo-user'] ?? 'you',
+        userId: kDemoUid,
+        username: _usernames[kDemoUid] ?? 'you',
       ),
     ];
   }
 }
-
-SpaceRepo resolveSpaceRepo() =>
-    Supa.ready ? SupabaseSpaceRepo() : DemoSpaceRepo();
 
 /// One `invite_codes` row out of a PostgREST RPC response.
 /// Single-composite RPCs normally decode to a Map, but a one-element
@@ -270,9 +254,8 @@ String parseRpcUuid(dynamic value) {
 }
 
 String friendlySpaceError(Object e) {
-  if (e is SocketException) {
-    return 'No connection. Check internet and retry.';
-  }
+  final common = commonBackendMessage(e);
+  if (common != null) return common;
   final m = e.toString().toLowerCase();
   if (m.contains('code not found')) {
     return "Hmm, that code didn't match. Check with your person.";
@@ -288,12 +271,6 @@ String friendlySpaceError(Object e) {
   }
   if (m.contains('not a member')) return 'Join a space first.';
   if (m.contains('log in first')) return 'Log in first.';
-  if (m.contains('failed host') || m.contains('network')) {
-    return 'No connection. Check internet and retry.';
-  }
-  if (e is TimeoutException || m.contains('timeout') || m.contains('timed out')) {
-    return 'Request timed out — check internet and retry.';
-  }
   if (m.contains('does not exist') ||
       m.contains('schema cache') ||
       m.contains('relation') ||

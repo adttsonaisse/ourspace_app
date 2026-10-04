@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'data/app_update_repo.dart';
-import 'data/auth_repo.dart';
-import 'data/content_repos.dart';
+import 'data/backend.dart';
+import 'data/composer.dart';
 import 'data/models/space.dart';
 import 'data/photo_store.dart';
 import 'data/repos.dart';
-import 'data/space_repo.dart';
-import 'data/supa.dart';
 import 'theme/kawaii.dart';
 import 'theme/prefs.dart';
 import 'widgets/kawaii.dart';
@@ -46,20 +44,20 @@ class _AppShellState extends State<AppShell> {
     Kawaii.mint,
   ];
 
-  late final SpaceRepo _spaces = resolveSpaceRepo();
-  late final AuthRepo _auth = resolveAuthRepo();
-  // Cloud impls (used when paired) + memory impls (solo/demo). Created
-  // once so solo sessions keep their in-memory pages.
-  final NotesRepo _cloudNotes = SupabaseNotesRepo();
-  final DatesRepo _cloudDates = SupabaseDatesRepo();
-  final RitualsRepo _cloudRituals = SupabaseRitualsRepo();
-  final PilesRepo _cloudPiles = SupabasePilesRepo();
-  final NotesRepo _memNotes = MemoryNotesRepo();
-  final DatesRepo _memDates = MemoryDatesRepo();
-  final RitualsRepo _memRituals = MemoryRitualsRepo();
-  final PilesRepo _memPiles = MemoryPilesRepo();
-  final PhotoStore _r2photos = R2PhotoStore();
-  final PhotoStore _memPhotos = MemoryPhotoStore();
+  late final Backend _backend = resolveBackend();
+  // Memory pages for pre-pairing explorers in cloud mode. In demo mode
+  // the backend itself is memory-backed, so this fallback is unused.
+  final Backend _soloFallback = DemoBackend();
+  Backend get _active =>
+      (_paired || !_backend.isCloud) ? _backend : _soloFallback;
+
+  SpaceRepo get _spaces => _backend.spaces;
+  AuthRepo get _auth => _backend.auth;
+  NotesRepo get _notes => _active.notes;
+  DatesRepo get _dates => _active.dates;
+  RitualsRepo get _rituals => _active.rituals;
+  PilesRepo get _piles => _active.piles;
+  PhotoStore get _photos => _active.photos;
 
   Space? _space;
   bool _spaceLoading = true;
@@ -69,16 +67,8 @@ class _AppShellState extends State<AppShell> {
   bool _updateDialogShown = false;
 
   bool get _paired => _space != null;
-  String get _spaceId => _space?.id ?? 'local';
-  NotesRepo get _notes => _paired ? _cloudNotes : _memNotes;
-  DatesRepo get _dates => _paired ? _cloudDates : _memDates;
-  RitualsRepo get _rituals => _paired ? _cloudRituals : _memRituals;
-  PilesRepo get _piles => _paired ? _cloudPiles : _memPiles;
-  PhotoStore get _photos => _paired ? _r2photos : _memPhotos;
-  String get _uid {
-    if (Supa.ready) return Supa.client.auth.currentUser?.id ?? 'demo-user';
-    return 'demo-user';
-  }
+  String get _spaceId => _space?.id ?? kDemoSpaceId;
+  String get _uid => _auth.currentUserId ?? kDemoUid;
 
   @override
   void initState() {
@@ -183,10 +173,7 @@ class _AppShellState extends State<AppShell> {
 
   ComposerDeps _deps() => ComposerDeps(
         spaceId: _spaceId,
-        notes: _notes,
-        piles: _piles,
-        dates: _dates,
-        photos: _photos,
+        composer: AppComposer(_active),
         onCreated: () {
           if (mounted) setState(() => _tick++);
         },

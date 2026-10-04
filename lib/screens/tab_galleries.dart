@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import '../data/backend_errors.dart';
 import '../data/models/content.dart';
 import '../data/photo_store.dart';
 import '../data/repos.dart';
@@ -30,16 +31,25 @@ class _PilesData {
 }
 
 class _GalleriesTabState extends State<GalleriesTab> {
-  Future<_PilesData> _load(List<Pile> piles) async {
-    final photos = <String, List<PilePhoto>>{};
-    await Future.wait(piles.map((p) async {
-      try {
-        photos[p.id] = await widget.pilesRepo.photos(p.id);
-      } catch (_) {
-        photos[p.id] = [];
+  final Map<String, List<PilePhoto>> _photoCache = {};
+
+  /// Photos only for piles missing from the cache; evict gone piles.
+  /// Own mutations evict explicitly + setState, so unrelated stream
+  /// events never refetch everything (no N+1 storm). Tradeoff: photos
+  /// added from another device appear on the next full refresh.
+  Future<_PilesData> _syncPhotos(List<Pile> piles) async {
+    final ids = {for (final p in piles) p.id};
+    _photoCache.removeWhere((k, _) => !ids.contains(k));
+    for (final p in piles) {
+      if (!_photoCache.containsKey(p.id)) {
+        try {
+          _photoCache[p.id] = await widget.pilesRepo.photos(p.id);
+        } catch (_) {
+          _photoCache[p.id] = [];
+        }
       }
-    }));
-    return _PilesData(piles, photos);
+    }
+    return _PilesData(piles, Map.of(_photoCache));
   }
 
   void _snack(String msg, {KawaiiAlertKind kind = KawaiiAlertKind.info}) {
@@ -52,9 +62,11 @@ class _GalleriesTabState extends State<GalleriesTab> {
       await widget.pilesRepo.removePhoto(ph.id);
       await widget.photoStore.remove(ph.r2Key);
     } catch (e) {
-      _snack(e.toString().replaceFirst('StateError: ', ''),
-          kind: KawaiiAlertKind.danger);
+      _snack(userMessage(e), kind: KawaiiAlertKind.danger);
+      return;
     }
+    if (!mounted) return;
+    setState(() => _photoCache.remove(ph.pileId));
   }
 
   Future<void> _removePile(Pile p, List<PilePhoto> shots) async {
@@ -63,10 +75,11 @@ class _GalleriesTabState extends State<GalleriesTab> {
         await widget.photoStore.remove(ph.r2Key);
       }
       await widget.pilesRepo.removePile(p.id);
+      if (!mounted) return;
+      setState(() => _photoCache.remove(p.id));
       _snack('“${p.title}” removed', kind: KawaiiAlertKind.success);
     } catch (e) {
-      _snack(e.toString().replaceFirst('StateError: ', ''),
-          kind: KawaiiAlertKind.danger);
+      _snack(userMessage(e), kind: KawaiiAlertKind.danger);
     }
   }
 
@@ -95,9 +108,7 @@ class _GalleriesTabState extends State<GalleriesTab> {
               if (snap.hasError) {
                 return KawaiiAlert(
                   title: 'Could not load piles',
-                  message: snap.error
-                      .toString()
-                      .replaceFirst('StateError: ', ''),
+                  message: userMessage(snap.error!),
                   kind: KawaiiAlertKind.danger,
                   actionLabel: 'Retry',
                   onAction: () => setState(() {}),
@@ -126,7 +137,7 @@ class _GalleriesTabState extends State<GalleriesTab> {
                 );
               }
               return FutureBuilder<_PilesData>(
-                future: _load(all),
+                future: _syncPhotos(all),
                 builder: (context, psnap) {
                   if (!psnap.hasData) {
                     return const Padding(

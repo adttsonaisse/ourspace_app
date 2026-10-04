@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../data/backend_errors.dart';
 import '../data/format.dart';
 import '../data/models/content.dart';
 import '../data/repos.dart';
@@ -27,8 +28,7 @@ class _DatesTabState extends State<DatesTab> {
           kind: KawaiiAlertKind.success);
     } catch (e) {
       if (!mounted) return;
-      showKawaiiToast(
-          context, e.toString().replaceFirst('StateError: ', ''),
+      showKawaiiToast(context, userMessage(e),
           kind: KawaiiAlertKind.danger);
     }
   }
@@ -58,9 +58,7 @@ class _DatesTabState extends State<DatesTab> {
               if (snap.hasError) {
                 return KawaiiAlert(
                   title: 'Could not load dates',
-                  message: snap.error
-                      .toString()
-                      .replaceFirst('StateError: ', ''),
+                  message: userMessage(snap.error!),
                   kind: KawaiiAlertKind.danger,
                   actionLabel: 'Retry',
                   onAction: () => setState(() {}),
