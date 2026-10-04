@@ -11,93 +11,52 @@ enum CreateKind { note, pile, date }
 
 class _KindMeta {
   final String label;
+  final String fabLabel;
   final IconData icon;
   final Color bg;
   final KawaiiBtnColor btn;
-  const _KindMeta(this.label, this.icon, this.bg, this.btn);
+  const _KindMeta(this.label, this.fabLabel, this.icon, this.bg, this.btn);
 }
 
 const _metas = {
-  CreateKind.note:
-      _KindMeta('Note', Icons.edit_note_rounded, Kawaii.peach, KawaiiBtnColor.peach),
-  CreateKind.pile: _KindMeta(
-      'Pile', Icons.photo_library_rounded, Kawaii.sky, KawaiiBtnColor.sky),
-  CreateKind.date: _KindMeta(
-      'Date', Icons.calendar_month_rounded, Kawaii.sunny, KawaiiBtnColor.sunny),
+  CreateKind.note: _KindMeta('Note', 'New note', Icons.edit_note_rounded,
+      Kawaii.peach, KawaiiBtnColor.peach),
+  CreateKind.pile: _KindMeta('Pile', 'New pile', Icons.photo_library_rounded,
+      Kawaii.sky, KawaiiBtnColor.sky),
+  CreateKind.date: _KindMeta('Date', 'Plan date',
+      Icons.calendar_month_rounded, Kawaii.sunny, KawaiiBtnColor.sunny),
 };
 
-/// Sticker-style expandable create button. Ink is outline-only;
-/// every fill is a kawaii-pop pastel. Open state is owned by the
-/// parent so the scrim can cover the full screen.
+/// Sticker-style contextual create button. One tab = one action:
+/// notes -> note, piles -> pile, dates -> date. Ink is outline-only;
+/// every fill is a kawaii-pop pastel.
 class KawaiiCreateFab extends StatelessWidget {
-  final bool open;
-  final VoidCallback onToggle;
-  final ValueChanged<CreateKind> onPick;
+  final CreateKind kind;
+  final VoidCallback onTap;
   const KawaiiCreateFab(
-      {super.key,
-      required this.open,
-      required this.onToggle,
-      required this.onPick});
+      {super.key, required this.kind, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final m = _metas[kind]!;
     final dark = Theme.of(context).brightness == Brightness.dark;
     final edge = dark ? Colors.white : Kawaii.ink;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        if (open)
-          ...CreateKind.values.map((k) {
-            final m = _metas[k]!;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Semantics(
-                button: true,
-                label: 'Create ${m.label}',
-                child: GestureDetector(
-                onTap: () => onPick(k),
-                behavior: HitTestBehavior.opaque,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    KawaiiPill(label: m.label, color: m.bg),
-                    const SizedBox(width: 10),
-                    Container(
-                      width: 52,
-                      height: 52,
-                      decoration: BoxDecoration(
-                        color: m.bg,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: edge, width: 3),
-                        boxShadow: [
-                          BoxShadow(
-                              color: edge, offset: const Offset(3, 3)),
-                        ],
-                      ),
-                      alignment: Alignment.center,
-                      child:
-                          Icon(m.icon, size: 24, color: Kawaii.ink),
-                    ),
-                  ],
-                ),
-                ),
-              ),
-            );
-          }),
-        Semantics(
-          button: true,
-          label: open ? 'Close create menu' : 'Create note, pile or date',
-          child: GestureDetector(
-          onTap: onToggle,
-          child: AnimatedRotation(
-            turns: open ? 0.125 : 0,
-            duration: const Duration(milliseconds: 200),
-            child: Container(
+    return Semantics(
+      button: true,
+      label: m.fabLabel,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            KawaiiPill(label: m.fabLabel, color: m.bg),
+            const SizedBox(width: 10),
+            Container(
               width: 64,
               height: 64,
               decoration: BoxDecoration(
-                color: open ? Colors.white : Kawaii.sunny,
+                color: m.bg,
                 shape: BoxShape.circle,
                 border: Border.all(color: edge, width: 3),
                 boxShadow: [
@@ -105,13 +64,11 @@ class KawaiiCreateFab extends StatelessWidget {
                 ],
               ),
               alignment: Alignment.center,
-              child: const Icon(Icons.add_rounded,
-                  size: 32, color: Kawaii.ink),
+              child: Icon(m.icon, size: 28, color: Kawaii.ink),
             ),
-          ),
-          ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

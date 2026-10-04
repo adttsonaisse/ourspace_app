@@ -29,7 +29,6 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int idx = 0;
-  bool fabOpen = false;
   int _tick = 0;
   final titles = const ['home', 'notes', 'piles', 'dates', 'you'];
   final icons = const [
@@ -195,30 +194,32 @@ class _AppShellState extends State<AppShell> {
       );
 
   void _jump(int i) => setState(() {
-        fabOpen = false;
         idx = i;
       });
 
   void _scheduleDate() =>
       showCreateSheet(context, CreateKind.date, _deps());
 
-  void _pickKind(CreateKind kind) {
-    setState(() {
-      fabOpen = false;
-      idx = switch (kind) {
-        CreateKind.note => 1,
-        CreateKind.pile => 2,
-        CreateKind.date => 3,
+  /// Contextual FAB target: only notes / piles / dates have one.
+  /// Returns null on home + you so no FAB is built there.
+  CreateKind? get _fabKind => switch (idx) {
+        1 => CreateKind.note,
+        2 => CreateKind.pile,
+        3 => CreateKind.date,
+        _ => null,
       };
-    });
+
+  void _createForCurrentTab() {
+    final kind = _fabKind;
+    if (kind == null) return;
     showCreateSheet(context, kind, _deps());
   }
 
   @override
   Widget build(BuildContext context) {
-    final dark = Kawaii.isDark(context);
     final edge = Kawaii.edgeOf(context);
     final barBg = Kawaii.cardOf(context);
+    final fabKind = _fabKind;
     return Scaffold(
       appBar: AppBar(
         title: Row(children: [
@@ -330,25 +331,15 @@ class _AppShellState extends State<AppShell> {
                 ritualsRepo: _rituals,
               ),
             ]),
-          if (fabOpen)
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: () => setState(() => fabOpen = false),
-                child: Container(
-                  color: (dark ? Colors.black : Kawaii.ink)
-                      .withValues(alpha: 0.25),
-                ),
+          if (fabKind != null)
+            Positioned(
+              right: 20,
+              bottom: 100,
+              child: KawaiiCreateFab(
+                kind: fabKind,
+                onTap: _createForCurrentTab,
               ),
             ),
-          Positioned(
-            right: 20,
-            bottom: 100,
-            child: KawaiiCreateFab(
-              open: fabOpen,
-              onToggle: () => setState(() => fabOpen = !fabOpen),
-              onPick: _pickKind,
-            ),
-          ),
         ],
       ),
           ),
