@@ -57,8 +57,7 @@ class SupabaseSpaceRepo implements SpaceRepo {
     try {
       final row =
           await _c.rpc('create_invite', params: {'sid': spaceId});
-      return InviteCode.fromJson(
-          Map<String, dynamic>.from(row as Map));
+      return parseInviteCodeResponse(row);
     } catch (e) {
       throw StateError(friendlySpaceError(e));
     }
@@ -67,12 +66,12 @@ class SupabaseSpaceRepo implements SpaceRepo {
   @override
   Future<Space> joinWithCode(String code) async {
     try {
-      final sid = await _c
-          .rpc('join_with_code', params: {'p_code': code.trim()});
+      final sid = parseRpcUuid(await _c
+          .rpc('join_with_code', params: {'p_code': code.trim()}));
       final row = await _c
           .from('spaces')
           .select()
-          .eq('id', sid as String)
+          .eq('id', sid)
           .single();
       return Space.fromJson(Map<String, dynamic>.from(row as Map));
     } catch (e) {
@@ -249,6 +248,26 @@ class DemoSpaceRepo implements SpaceRepo {
 
 SpaceRepo resolveSpaceRepo() =>
     Supa.ready ? SupabaseSpaceRepo() : DemoSpaceRepo();
+
+/// One `invite_codes` row out of a PostgREST RPC response.
+/// Single-composite RPCs normally decode to a Map, but a one-element
+/// List is accepted too so a shape change fails loudly in tests,
+/// not silently in production. Anything else throws StateError.
+InviteCode parseInviteCodeResponse(dynamic row) {
+  final first = row is List && row.isNotEmpty ? row.first : row;
+  if (first is! Map) {
+    throw StateError('Something hiccuped. Try again.');
+  }
+  return InviteCode.fromJson(Map<String, dynamic>.from(first));
+}
+
+/// UUID scalar out of a PostgREST RPC response (normally a String,
+/// sometimes wrapped in a one-element List).
+String parseRpcUuid(dynamic value) {
+  final v = value is List && value.isNotEmpty ? value.first : value;
+  if (v is String && v.isNotEmpty) return v;
+  throw StateError('Something hiccuped. Try again.');
+}
 
 String friendlySpaceError(Object e) {
   if (e is SocketException) {

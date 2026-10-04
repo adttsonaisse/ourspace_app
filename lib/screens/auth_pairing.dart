@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
@@ -27,6 +28,7 @@ class _PairingPageState extends State<PairingPage> {
   InviteCode? _invite;
   bool _loading = true;
   String? _loadError;
+  String? _loadDetail;
   Timer? _ticker;
   Duration _left = Duration.zero;
 
@@ -48,6 +50,7 @@ class _PairingPageState extends State<PairingPage> {
     setState(() {
       _loading = true;
       _loadError = null;
+      _loadDetail = null;
     });
     String step = 'mySpace';
     try {
@@ -69,11 +72,12 @@ class _PairingPageState extends State<PairingPage> {
       });
       _restartTicker();
     } catch (e) {
-      debugPrint('[pairing] bootstrap failed at $step: $e');
+      debugPrint('[pairing] bootstrap failed at $step (${e.runtimeType}): $e');
       if (!mounted) return;
       setState(() {
         _loading = false;
         _loadError = friendlySpaceError(e);
+        _loadDetail = 'step=$step type=${e.runtimeType} err=$e';
       });
     }
   }
@@ -316,8 +320,9 @@ class _PairingPageState extends State<PairingPage> {
     if (_loadError != null) {
       final msg = _loadError!;
       final low = msg.toLowerCase();
+      final KawaiiAlert alert;
       if (_isDemo || low.contains('solo demo')) {
-        return KawaiiAlert(
+        alert = KawaiiAlert(
           title: 'Solo mode — no code yet',
           message:
               'You\'re exploring offline. Log in to get a real 24h pair code for two phones. Notes, piles & dates all work solo.',
@@ -325,18 +330,38 @@ class _PairingPageState extends State<PairingPage> {
           actionLabel: 'Explore solo',
           onAction: () => _enter(false),
         );
+      } else {
+        final title = low.contains('log in')
+            ? 'Hold on — log in first'
+            : low.contains('no connection') || low.contains('check internet')
+                ? 'No connection'
+                : 'Could not make a code';
+        alert = KawaiiAlert(
+          title: title,
+          message: msg,
+          kind: KawaiiAlertKind.danger,
+          actionLabel: 'Retry',
+          onAction: _bootstrap,
+        );
       }
-      final title = low.contains('log in')
-          ? 'Hold on — log in first'
-          : low.contains('no connection') || low.contains('check internet')
-              ? 'No connection'
-              : 'Could not make a code';
-      return KawaiiAlert(
-        title: title,
-        message: msg,
-        kind: KawaiiAlertKind.danger,
-        actionLabel: 'Retry',
-        onAction: _bootstrap,
+      // Raw step + error for diagnostics. Debug builds only —
+      // release builds keep the friendly copy.
+      final detail = _loadDetail;
+      if (!kDebugMode || detail == null) return alert;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          alert,
+          const SizedBox(height: 8),
+          SelectableText(
+            detail,
+            style: const TextStyle(
+              fontFamily: 'monospace',
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       );
     }
     final code = _invite?.code ?? '…';
