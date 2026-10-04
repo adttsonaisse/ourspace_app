@@ -33,6 +33,10 @@ class _PairingPageState extends State<PairingPage> {
   bool _joining = false;
   Space? _joined;
 
+  /// True when pairing cannot work because there is no backend
+  /// (local demo / solo explore). Invite codes only come from Supabase.
+  bool get _isDemo => _spaces is DemoSpaceRepo;
+
   @override
   void initState() {
     super.initState();
@@ -243,10 +247,14 @@ class _PairingPageState extends State<PairingPage> {
             const SizedBox(height: 14),
             if (tab == 0)
               KawaiiButton(
-                label: 'Enter ourspace together',
+                label: _isDemo
+                    ? 'Explore solo for now'
+                    : 'Enter ourspace together',
                 color: KawaiiBtnColor.sunny,
-                icon: Icons.favorite_rounded,
-                onTap: _invite == null ? null : () => _enter(true),
+                icon: _isDemo
+                    ? Icons.explore_rounded
+                    : Icons.favorite_rounded,
+                onTap: _isDemo ? () => _enter(false) : (_invite == null ? null : () => _enter(true)),
               )
             else
               KawaiiButton(
@@ -308,6 +316,16 @@ class _PairingPageState extends State<PairingPage> {
     if (_loadError != null) {
       final msg = _loadError!;
       final low = msg.toLowerCase();
+      if (_isDemo || low.contains('solo demo')) {
+        return KawaiiAlert(
+          title: 'Solo mode — no code yet',
+          message:
+              'You\'re exploring offline. Log in to get a real 24h pair code for two phones. Notes, piles & dates all work solo.',
+          kind: KawaiiAlertKind.info,
+          actionLabel: 'Explore solo',
+          onAction: () => _enter(false),
+        );
+      }
       final title = low.contains('log in')
           ? 'Hold on — log in first'
           : low.contains('no connection') || low.contains('check internet')
@@ -387,6 +405,16 @@ class _PairingPageState extends State<PairingPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 8),
+          if (_isDemo)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 12),
+              child: KawaiiAlert(
+                title: 'Solo mode — joining needs login',
+                message:
+                    'Partner codes are checked on the backend. Log in first, or keep exploring solo.',
+                kind: KawaiiAlertKind.info,
+              ),
+            ),
           KawaiiInput(
               hint: 'e.g. 482916',
               label: 'PARTNER CODE',

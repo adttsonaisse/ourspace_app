@@ -18,12 +18,13 @@ Future<void> _pumpPairing(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('Demo mode has no local code, shows retry', (tester) async {
+  testWidgets('Demo mode explains solo instead of error', (tester) async {
     await _pumpPairing(tester);
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('Solo demo — pair codes come from the backend.'),
-        findsOneWidget);
-    expect(find.text('Retry'), findsOneWidget);
+    expect(find.text('Solo mode — no code yet'), findsOneWidget);
+    expect(find.text('Explore solo'), findsWidgets);
+    expect(find.text('Retry'), findsNothing);
+    expect(find.text('Could not make a code'), findsNothing);
     expect(find.text('482916'), findsNothing);
   });
 
