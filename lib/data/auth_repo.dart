@@ -171,12 +171,25 @@ String friendlyAuthError(Object e) {
   if (e is SocketException) {
     return 'No connection. Check internet and retry.';
   }
+  if (e is TimeoutException ||
+      e.toString().toLowerCase().contains('timed out') ||
+      e.toString().toLowerCase().contains('timeout')) {
+    return 'No connection. Check internet and retry.';
+  }
   if (e is AuthException) {
     final m = e.message.toLowerCase();
     if (m.contains('already registered') || m.contains('already exists')) {
       return 'Already have an account? Log in instead.';
     }
-    if (m.contains('invalid login') || m.contains('invalid credentials')) {
+    if (m.contains('email not confirmed') ||
+        m.contains('not confirmed') ||
+        (m.contains('confirm') && m.contains('email'))) {
+      return 'Confirm your email first, then log in.';
+    }
+    if (m.contains('invalid login') ||
+        m.contains('invalid credentials') ||
+        m.contains('user not found') ||
+        m.contains('not found')) {
       return "Hmm, that login didn't match. Try again.";
     }
     if (m.contains('password')) return 'Password needs 6+ characters.';

@@ -40,7 +40,7 @@ void main() {
     expect(find.byType(AppShell), findsOneWidget);
   });
 
-  testWidgets('Login failure shows SnackBar, stays put', (tester) async {
+  testWidgets('Login failure shows kawaii alert, stays put', (tester) async {
     await tester.pumpWidget(MaterialApp(
       theme: Kawaii.light(),
       home: LoginRegisterPage(loginFirst: true, auth: _FailAuth()),
@@ -52,8 +52,35 @@ void main() {
     await tester.tap(find.text('Login to ourspace'));
     await tester.pumpAndSettle();
 
-    expect(find.text("Hmm, that login didn't match. Try again."),
+    expect(find.text('No account for this email yet'), findsOneWidget);
+    expect(
+        find.text(
+            "We couldn't match that email + password. Check for typos or make a space instead."),
         findsOneWidget);
+    expect(find.text('Create one'), findsOneWidget);
+    expect(find.byType(AppShell), findsNothing);
+
+    // Alert action switches to register mode.
+    await tester.ensureVisible(find.text('Create one'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Create one'));
+    await tester.pumpAndSettle();
+    expect(find.text('Create our space'), findsOneWidget);
+  });
+
+  testWidgets('Login email format is validated inline', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      theme: Kawaii.light(),
+      home: LoginRegisterPage(loginFirst: true, auth: DemoAuthRepo()),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).at(0), 'not-an-email');
+    await tester.enterText(find.byType(TextField).at(1), 'secret123');
+    await tester.tap(find.text('Login to ourspace'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('That email looks off'), findsOneWidget);
     expect(find.byType(AppShell), findsNothing);
   });
 
@@ -72,6 +99,7 @@ void main() {
     await tester.tap(find.text('Create our space'));
     await tester.pumpAndSettle();
 
+    expect(find.text('Check your inbox'), findsOneWidget);
     expect(find.text('Account created — confirm your email, then log in'),
         findsOneWidget);
     expect(find.text('Login to ourspace'), findsOneWidget);

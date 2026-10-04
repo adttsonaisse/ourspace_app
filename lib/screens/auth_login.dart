@@ -19,6 +19,10 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
   late bool isLogin;
   late final AuthRepo _auth;
   bool _busy = false;
+  String? _alertTitle;
+  String? _alertMessage;
+  KawaiiAlertKind _alertKind = KawaiiAlertKind.danger;
+  String? _alertAction;
   final _formKey = GlobalKey<FormState>();
   final _usernameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
@@ -54,19 +58,93 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
     return null;
   }
 
+  void _switchMode(bool toLogin) => setState(() {
+        isLogin = toLogin;
+        _alertTitle = null;
+        _alertMessage = null;
+        _alertAction = null;
+      });
+
+  void _showAlert(String title, String message, KawaiiAlertKind kind,
+      [String? action]) {
+    setState(() {
+      _alertTitle = title;
+      _alertMessage = message;
+      _alertKind = kind;
+      _alertAction = action;
+    });
+  }
+
+  void _handleAuthError(Object e, {required bool wasLogin}) {
+    final msg = friendlyAuthError(e);
+    final raw = '$e $msg'.toLowerCase();
+    final offline = raw.contains('no connection') ||
+        raw.contains('check internet') ||
+        raw.contains('timed out') ||
+        raw.contains('timeout') ||
+        raw.contains('network') ||
+        raw.contains('failed host') ||
+        raw.contains('socket');
+    if (offline) {
+      _showAlert('No connection', msg, KawaiiAlertKind.warning);
+      return;
+    }
+    if (raw.contains('confirm')) {
+      _showAlert(
+          'Confirm your email first', msg, KawaiiAlertKind.warning);
+      return;
+    }
+    if (raw.contains('already registered') ||
+        raw.contains('already exists') ||
+        raw.contains('already have an account')) {
+      _showAlert('Already registered', msg, KawaiiAlertKind.info, 'Log in');
+      return;
+    }
+    if (wasLogin &&
+        (raw.contains("didn't match") ||
+            raw.contains('invalid login') ||
+            raw.contains('invalid credentials') ||
+            raw.contains('user not found') ||
+            raw.contains('not found'))) {
+      _showAlert(
+        'No account for this email yet',
+        "We couldn't match that email + password. Check for typos or make a space instead.",
+        KawaiiAlertKind.danger,
+        'Create one',
+      );
+      return;
+    }
+    if (raw.contains('password')) {
+      _showAlert('Check your password', msg, KawaiiAlertKind.danger);
+      return;
+    }
+    if (raw.contains('email') || raw.contains('looks off')) {
+      _showAlert('Check your email', msg, KawaiiAlertKind.danger);
+      return;
+    }
+    _showAlert("Hmm, that didn't work", msg, KawaiiAlertKind.danger);
+  }
+
   Future<void> _continue() async {
     final valid = _formKey.currentState?.validate() ?? false;
     if (!valid || _busy) return;
-    setState(() => _busy = true);
+    final wasLogin = isLogin;
+    final email = _emailCtrl.text.trim().toLowerCase();
+    setState(() {
+      _busy = true;
+      _alertTitle = null;
+      _alertMessage = null;
+      _alertAction = null;
+    });
     try {
-      if (isLogin) {
-        await _auth.signIn(_emailCtrl.text, _passCtrl.text);
+      if (wasLogin) {
+        await _auth.signIn(email, _passCtrl.text);
       } else {
-        await _auth.signUp(_emailCtrl.text, _passCtrl.text,
+        await _auth.signUp(email, _passCtrl.text,
             username: _usernameCtrl.text);
       }
       if (!mounted) return;
-      if (isLogin) {
+      if (wasLogin) {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const AppShell()),
           (_) => false,
@@ -74,10 +152,10 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
       } else if (_auth.currentUserId == null) {
         // Email confirmation required: no session yet. Park on login.
         setState(() => isLogin = true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text(
-                  'Account created — confirm your email, then log in')),
+        _showAlert(
+          'Check your inbox',
+          'Account created — confirm your email, then log in',
+          KawaiiAlertKind.info,
         );
       } else {
         final username = _usernameCtrl.text.trim();
@@ -89,9 +167,7 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(friendlyAuthError(e))),
-      );
+      _handleAuthError(e, wasLogin: wasLogin);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -197,6 +273,23 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
                       obscure: true,
                       prefix: Icons.lock_outline_rounded,
                       validator: _passValidator),
+                  if (_alertTitle != null && _alertMessage != null) ...[
+                    const SizedBox(height: 12),
+                    KawaiiAlert(
+                      title: _alertTitle!,
+                      message: _alertMessage!,
+                      kind: _alertKind,
+                      actionLabel: _alertAction,
+                      onAction: _alertAction == null
+                          ? null
+                          : () => _switchMode(_alertAction == 'Log in'),
+                      onClose: () => setState(() {
+                        _alertTitle = null;
+                        _alertMessage = null;
+                        _alertAction = null;
+                      }),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   KawaiiButton(
                     label: _busy
@@ -214,7 +307,7 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
                   Center(
                     child: TextButton(
                       onPressed: () =>
-                          setState(() => isLogin = !isLogin),
+                          _switchMode(!isLogin),
                       child: Text(
                         isLogin
                             ? "New here? Make a space instead"
@@ -245,7 +338,7 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
 
   Widget _seg(String label, bool active, Color color) {
     return GestureDetector(
-      onTap: () => setState(() => isLogin = label == 'Login'),
+      onTap: () => _switchMode(label == 'Login'),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(vertical: 12),
