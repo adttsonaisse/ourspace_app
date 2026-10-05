@@ -185,6 +185,7 @@ class _PairingPageState extends State<PairingPage> {
 
   @override
   Widget build(BuildContext context) {
+    final edge = Kawaii.edgeOf(context);
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -192,11 +193,11 @@ class _PairingPageState extends State<PairingPage> {
           icon: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Kawaii.cardOf(context),
               shape: BoxShape.circle,
-              border: Border.all(color: Kawaii.ink, width: 2.5),
+              border: Border.all(color: edge, width: Kawaii.paperBorderW),
             ),
-            child: const Icon(Icons.arrow_back_rounded, size: 18),
+            child: Icon(Icons.arrow_back_rounded, size: 18, color: Kawaii.textOf(context)),
           ),
         ),
         title: const Text('pair your person',
@@ -210,13 +211,13 @@ class _PairingPageState extends State<PairingPage> {
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                KawaiiAvatar(text: 'Y', bg: Kawaii.peach, size: 64),
-                SizedBox(width: 4),
-                Icon(Icons.link_rounded, size: 28),
-                SizedBox(width: 4),
+              children: [
+                const KawaiiAvatar(text: 'Y', bg: Kawaii.peach, size: 64),
+                const SizedBox(width: 4),
+                const Icon(Icons.link_rounded, size: 28),
+                const SizedBox(width: 4),
                 KawaiiAvatar(
-                    text: '?', bg: Colors.white, size: 64),
+                    text: '?', bg: Kawaii.cardOf(context), size: 64),
               ],
             ),
             const SizedBox(height: 14),
@@ -236,10 +237,10 @@ class _PairingPageState extends State<PairingPage> {
             Container(
               padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Kawaii.cardOf(context),
                 borderRadius: BorderRadius.circular(28),
-                border: Border.all(color: Kawaii.ink, width: 3),
-                boxShadow: const [BoxShadow(color: Kawaii.ink, offset: Offset(4, 4))],
+                border: Border.all(color: edge, width: Kawaii.borderW),
+                boxShadow: Kawaii.sticker(context),
               ),
               child: Column(children: [
                 Row(children: [
@@ -275,10 +276,11 @@ class _PairingPageState extends State<PairingPage> {
               onPressed: () => Navigator.of(context).pushAndRemoveUntil(
                   MaterialPageRoute(builder: (_) => const AppShell()),
                   (_) => false),
-              child: const Text('Skip for now — explore solo',
+              child: Text('Skip for now — explore solo',
                   style: TextStyle(
+                      fontFamily: Kawaii.displayFamily,
                       fontWeight: FontWeight.w700,
-                      color: Kawaii.ink,
+                      color: Kawaii.textOf(context),
                       decoration: TextDecoration.underline)),
             ),
           ],
@@ -289,6 +291,7 @@ class _PairingPageState extends State<PairingPage> {
 
   Widget _seg(String l, int i, Color c) {
     final active = tab == i;
+    final edge = Kawaii.edgeOf(context);
     return Semantics(
       button: true,
       selected: active,
@@ -303,12 +306,15 @@ class _PairingPageState extends State<PairingPage> {
           color: active ? c : Colors.transparent,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-              color: active ? Kawaii.ink : Colors.transparent, width: 2.5),
+              color: active ? edge : Colors.transparent, width: Kawaii.paperBorderW),
         ),
         alignment: Alignment.center,
         child: Text(l,
-            style: const TextStyle(
-                fontWeight: FontWeight.w900, fontFamily: Kawaii.displayFamily, fontSize: 14)),
+            style: TextStyle(
+                fontWeight: FontWeight.w900,
+                fontFamily: Kawaii.displayFamily,
+                fontSize: 14,
+                color: active ? Kawaii.ink : Kawaii.textOf(context))),
       ),
       ),
     );
@@ -368,6 +374,8 @@ class _PairingPageState extends State<PairingPage> {
         ],
       );
     }
+    final edge = Kawaii.edgeOf(context);
+    final cardBg = Kawaii.isDark(context) ? Kawaii.night : Kawaii.cream;
     final code = _invite?.code ?? '…';
     return Column(children: [
       const SizedBox(height: 8),
@@ -375,23 +383,26 @@ class _PairingPageState extends State<PairingPage> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 18),
         decoration: BoxDecoration(
-          color: Kawaii.cream,
+          color: cardBg,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-              color: Kawaii.ink, width: 2.5, style: BorderStyle.solid),
+              color: edge, width: Kawaii.paperBorderW, style: BorderStyle.solid),
         ),
         child: Column(children: [
-          const Text('YOUR PAIR CODE',
+          Text('YOUR PAIR CODE',
               style: TextStyle(
+                  fontFamily: Kawaii.displayFamily,
                   fontWeight: FontWeight.w900,
                   fontSize: 11,
+                  color: Kawaii.mutedOf(context),
                   letterSpacing: 1.2)),
           const SizedBox(height: 6),
           Text(code,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.w900,
                   fontFamily: Kawaii.displayFamily,
+                  color: Kawaii.textOf(context),
                   letterSpacing: 1)),
           const SizedBox(height: 4),
           KawaiiPill(
@@ -420,10 +431,11 @@ class _PairingPageState extends State<PairingPage> {
       ]),
       TextButton(
         onPressed: _freshCode,
-        child: const Text('Fresh code',
+        child: Text('Fresh code',
             style: TextStyle(
+                fontFamily: Kawaii.displayFamily,
                 fontWeight: FontWeight.w700,
-                color: Kawaii.ink,
+                color: Kawaii.textOf(context),
                 decoration: TextDecoration.underline)),
       ),
       if (_freshError != null) ...[

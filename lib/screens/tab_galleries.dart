@@ -33,10 +33,6 @@ class _PilesData {
 class _GalleriesTabState extends State<GalleriesTab> {
   final Map<String, List<PilePhoto>> _photoCache = {};
 
-  /// Photos only for piles missing from the cache; evict gone piles.
-  /// Own mutations evict explicitly + setState, so unrelated stream
-  /// events never refetch everything (no N+1 storm). Tradeoff: photos
-  /// added from another device appear on the next full refresh.
   Future<_PilesData> _syncPhotos(List<Pile> piles) async {
     final ids = {for (final p in piles) p.id};
     _photoCache.removeWhere((k, _) => !ids.contains(k));
@@ -58,6 +54,13 @@ class _GalleriesTabState extends State<GalleriesTab> {
   }
 
   Future<void> _removePhoto(PilePhoto ph) async {
+    final ok = await confirmKawaii(
+      context,
+      title: 'Delete this photo?',
+      message: 'It will be removed from the pile for both of you.',
+      confirmLabel: 'Delete photo',
+    );
+    if (!ok) return;
     try {
       await widget.pilesRepo.removePhoto(ph.id);
       await widget.photoStore.remove(ph.r2Key);
@@ -70,6 +73,13 @@ class _GalleriesTabState extends State<GalleriesTab> {
   }
 
   Future<void> _removePile(Pile p, List<PilePhoto> shots) async {
+    final ok = await confirmKawaii(
+      context,
+      title: 'Delete “${p.title}”?',
+      message: 'This pile and its ${shots.length} photo(s) will be deleted.',
+      confirmLabel: 'Delete pile',
+    );
+    if (!ok) return;
     try {
       for (final ph in shots) {
         await widget.photoStore.remove(ph.r2Key);
@@ -90,12 +100,6 @@ class _GalleriesTabState extends State<GalleriesTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const KawaiiPageHeader(
-            title: 'Photo piles',
-            subtitle: 'No feed. Just your piles.',
-            icon: Icons.photo_library_rounded,
-            bg: Kawaii.sky),
-          const SizedBox(height: 10),
           StreamBuilder<List<Pile>>(
             stream: widget.pilesRepo.watch(widget.spaceId),
             builder: (context, snap) {
@@ -116,24 +120,9 @@ class _GalleriesTabState extends State<GalleriesTab> {
               }
               final all = snap.data ?? [];
               if (all.isEmpty) {
-                return KawaiiCard(
-                  color: Kawaii.skySubtle,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const KawaiiPill(
-                          label: 'no piles yet', color: Colors.white),
-                      const SizedBox(height: 10),
-                      const Text('Start the first pile',
-                          style: TextStyle(
-                              fontWeight: FontWeight.w900,
-                              fontFamily: Kawaii.displayFamily,
-                              fontSize: 18)),
-                      const Text(
-                          'Name it, add the moments. Tap + below.',
-                          style: TextStyle(fontWeight: FontWeight.w500)),
-                    ],
-                  ),
+                return const KawaiiEmpty(
+                  title: 'Start the first pile',
+                  message: 'Name it, add the moments. Tap + below.',
                 );
               }
               return FutureBuilder<_PilesData>(
@@ -162,7 +151,8 @@ class _GalleriesTabState extends State<GalleriesTab> {
                       _featuredCard(featured,
                           data.photos[featured.id] ?? []),
                       if (rest.isNotEmpty) ...[
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 16),
+                        const KawaiiSectionTitle('All piles'),
                         GridView.builder(
                           shrinkWrap: true,
                           physics:
@@ -172,7 +162,7 @@ class _GalleriesTabState extends State<GalleriesTab> {
                                   crossAxisCount: 2,
                                   crossAxisSpacing: 12,
                                   mainAxisSpacing: 12,
-                                  childAspectRatio: 0.75),
+                                  childAspectRatio: 0.72),
                           itemCount: rest.length,
                           itemBuilder: (_, i) => _albumCard(
                               rest[i], data.photos[rest[i].id] ?? []),
@@ -192,6 +182,7 @@ class _GalleriesTabState extends State<GalleriesTab> {
   Widget _featuredCard(Pile p, List<PilePhoto> shots) {
     return KawaiiCard(
       color: Kawaii.peach,
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -201,34 +192,27 @@ class _GalleriesTabState extends State<GalleriesTab> {
                 color: Kawaii.sunny,
                 icon: Icons.auto_awesome_rounded),
             const Spacer(),
-            GestureDetector(
+            KawaiiIconButton(
+              icon: Icons.delete_outline_rounded,
+              label: 'Delete pile',
+              fill: Colors.white,
+              size: 40,
               onTap: () => _removePile(p, shots),
-              behavior: HitTestBehavior.opaque,
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(999),
-                    border:
-                        Border.all(color: Kawaii.ink, width: 2.5)),
-                child: const Icon(Icons.delete_outline_rounded,
-                    size: 18, color: Kawaii.ink),
-              ),
             ),
           ]),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           if (shots.isEmpty)
             AspectRatio(
               aspectRatio: 1,
               child: Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Kawaii.ink, width: 2.5),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Kawaii.ink, width: Kawaii.paperBorderW),
                 ),
                 alignment: Alignment.center,
                 child: const Icon(Icons.photo_library_rounded,
-                    size: 48, color: Kawaii.ink),
+                    size: 44, color: Kawaii.ink),
               ),
             )
           else
@@ -239,8 +223,8 @@ class _GalleriesTabState extends State<GalleriesTab> {
                   aspectRatio: 1,
                   child: Container(
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Kawaii.ink, width: 2.5),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Kawaii.ink, width: Kawaii.paperBorderW),
                     ),
                     clipBehavior: Clip.antiAlias,
                     child: _PhotoImage(
@@ -251,31 +235,32 @@ class _GalleriesTabState extends State<GalleriesTab> {
                 if (shots.length > 1) ...[
                   const SizedBox(height: 8),
                   SizedBox(
-                    height: 76,
+                    height: 72,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: shots.length - 1,
                       separatorBuilder: (_, _) =>
                           const SizedBox(width: 8),
                       itemBuilder: (_, i) =>
-                          _stripThumb(shots[i + 1], w: 72, h: 76),
+                          _stripThumb(shots[i + 1], w: 68, h: 72),
                     ),
                   ),
                 ],
               ],
             ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Text(p.title,
               style: const TextStyle(
+                  fontFamily: Kawaii.displayFamily,
                   color: Kawaii.ink,
                   fontWeight: FontWeight.w900,
-                  fontFamily: Kawaii.displayFamily,
                   fontSize: 18)),
           Text(
               p.location.isEmpty
                   ? '${shots.length} pics • added together'
                   : '${shots.length} pics • ${p.location}',
               style: TextStyle(
+                  fontFamily: Kawaii.displayFamily,
                   color: Kawaii.ink.withValues(alpha: 0.7),
                   fontWeight: FontWeight.w600,
                   fontSize: 13)),
@@ -289,7 +274,7 @@ class _GalleriesTabState extends State<GalleriesTab> {
       clipBehavior: Clip.none,
       children: [
         ClipRRect(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           child: SizedBox(
             width: w,
             height: h,
@@ -298,27 +283,27 @@ class _GalleriesTabState extends State<GalleriesTab> {
           ),
         ),
         Positioned(
-          top: -8,
-          right: -8,
+          top: -6,
+          right: -6,
           child: GestureDetector(
             onTap: () => _removePhoto(ph),
             behavior: HitTestBehavior.opaque,
             child: Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(6),
               decoration: const BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
               ),
               child: Container(
-                padding: const EdgeInsets.all(4),
+                padding: const EdgeInsets.all(3),
                 decoration: BoxDecoration(
                   color: Kawaii.bubble,
                   shape: BoxShape.circle,
                   border:
-                      Border.all(color: Kawaii.ink, width: 2),
+                      Border.all(color: Kawaii.ink, width: 1.5),
                 ),
                 child: const Icon(Icons.close_rounded,
-                    size: 14, color: Kawaii.ink),
+                    size: 12, color: Kawaii.ink),
               ),
             ),
           ),
@@ -331,8 +316,9 @@ class _GalleriesTabState extends State<GalleriesTab> {
     return GestureDetector(
       onLongPress: () => _removePile(p, shots),
       child: KawaiiCard(
-        color: Colors.white,
-        padding: const EdgeInsets.all(12),
+        sticker: false,
+        color: Kawaii.cardOf(context),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -340,16 +326,16 @@ class _GalleriesTabState extends State<GalleriesTab> {
               aspectRatio: 1,
               child: Container(
                 decoration: BoxDecoration(
-                  color: Kawaii.sky.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(18),
+                  color: Kawaii.sky.withValues(alpha: 0.25),
+                  borderRadius: BorderRadius.circular(14),
                   border:
-                      Border.all(color: Kawaii.ink, width: 2.5),
+                      Border.all(color: Kawaii.edgeOf(context), width: Kawaii.paperBorderW),
                 ),
                 clipBehavior: Clip.antiAlias,
                 alignment: Alignment.center,
                 child: shots.isEmpty
-                    ? const Icon(Icons.photo_library_rounded,
-                        size: 40, color: Kawaii.ink)
+                    ? Icon(Icons.photo_library_rounded,
+                        size: 36, color: Kawaii.textOf(context))
                     : SizedBox.expand(
                         child: _PhotoImage(
                             store: widget.photoStore,
@@ -357,15 +343,20 @@ class _GalleriesTabState extends State<GalleriesTab> {
                       ),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(p.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                    fontWeight: FontWeight.w800, fontSize: 14)),
+                    fontFamily: Kawaii.displayFamily,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13)),
             Text('${shots.length} pics',
-                style: const TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w600)),
+                style: TextStyle(
+                    fontFamily: Kawaii.displayFamily,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Kawaii.mutedOf(context))),
           ],
         ),
       ),
@@ -413,9 +404,9 @@ class _PhotoImage extends StatelessWidget {
       color: Kawaii.skySubtle,
       alignment: Alignment.center,
       child: const SizedBox(
-          width: 22,
-          height: 22,
-          child: CircularProgressIndicator(strokeWidth: 3)));
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2.5)));
 
   Widget _broken() => Container(
       color: Kawaii.skySubtle,

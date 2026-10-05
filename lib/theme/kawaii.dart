@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 abstract class Kawaii {
-  // Core palette — Kawaii Pop tokens (light)
+  // Pastels — content + wayfinding only (note/ritual colors, active nav,
+  // the primary button of a tab). Chrome stays ink on paper.
   static const peach = Color(0xFFF8BE9E);
   static const peachHover = Color(0xFFF5A888);
   static const sky = Color(0xFF70D6FF);
@@ -11,33 +11,44 @@ abstract class Kawaii {
   static const sunnyHover = Color(0xFFFFCA4D);
   static const bubble = Color(0xFFFF7096);
   static const mint = Color(0xFFBCFFBE);
-  static const ink = Color(0xFF0A0A0A);
+
+  /// Deep plum ink: text, outlines, sticker shadow. Stays the text color
+  /// on every pastel fill in both themes.
+  static const ink = Color(0xFF2A2133);
   static const paper = Color(0xFFFFFFFF);
   static const cream = Color(0xFFFFF7F0);
+
+  // Semantic tints: alert/toast backgrounds only.
   static const blushSubtle = Color(0xFFFFE9D9);
   static const skySubtle = Color(0xFFE3F5FF);
   static const sunnySubtle = Color(0xFFFFF1C9);
   static const pinkSubtle = Color(0xFFFFE0E9);
   static const mintSubtle = Color(0xFFE2FFE3);
 
-  // Dark mode surfaces
-  static const night = Color(0xFF0A0A0A);
-  static const nightCard = Color(0xFF1E1E1E);
-  static const nightInk = Color(0xFFFFFFFF);
+  // Night: plum-tinted, not neutral grey, so pastels still sit warm.
+  static const night = Color(0xFF1C1622);
+  static const nightCard = Color(0xFF2A2231);
+  static const nightInk = Color(0xFFF3EAF5);
 
   static const borderW = 3.0;
-  static const radiusCard = 32.0;
-  static const radiusInput = 24.0;
-  static const radiusBtn = 28.0;
+  static const paperBorderW = 2.0;
 
-  /// Display face for sticker headers. Loaded via GoogleFonts in
-  /// light()/dark(); refer to this const so const TextStyles stay const
-  /// and the family never drifts per file.
+  /// Radii by tier: sticker cards > inner/paper blocks > inputs.
+  /// Buttons, chips and the FAB are pills.
+  static const radiusCard = 24.0;
+  static const radiusInner = 16.0;
+  static const radiusInput = 16.0;
+  static const radiusBtn = 999.0;
+
+  /// The only typeface. Bundled in assets/fonts (see pubspec).
   static const displayFamily = 'Nunito';
 
   /// Note color order. DB stores colorIdx into this list — append only,
   /// never reorder, or old notes change color.
   static const notePalette = [peach, sky, sunny, mint, bubble];
+
+  /// Human names for [notePalette], same order (screen-reader labels).
+  static const notePaletteNames = ['Peach', 'Sky', 'Sunny', 'Mint', 'Pink'];
 
   /// App-wide theme mode. SettingsTab writes, OurSpaceApp reads.
   /// Defaults to light to preserve the sticker-book look.
@@ -46,133 +57,131 @@ abstract class Kawaii {
   static bool isDark(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark;
 
-  /// Outline color: ink on light, white on dark. Never a fill.
+  /// Outline + sticker-shadow color: ink on light, soft lilac on dark.
   static Color edgeOf(BuildContext context) =>
-      isDark(context) ? Colors.white : ink;
+      isDark(context) ? nightInk : ink;
 
   /// Card surface: white on light, nightCard on dark.
   static Color cardOf(BuildContext context) =>
       isDark(context) ? nightCard : Colors.white;
 
+  /// Body text color on the theme surface.
   static Color textOf(BuildContext context) =>
-      isDark(context) ? Colors.white : ink;
+      isDark(context) ? nightInk : ink;
 
-  /// Bottom clearance for tab scrolls: floating nav (~72) + FAB (64)
-  /// + margins. Plus the device safe-area so content never hides
-  /// behind the nav on notched phones.
+  /// Secondary text (meta, timestamps) on the theme surface.
+  static Color mutedOf(BuildContext context) =>
+      textOf(context).withValues(alpha: 0.68);
+
+  /// Hairline dividers inside paper groups.
+  static Color lineOf(BuildContext context) =>
+      textOf(context).withValues(alpha: isDark(context) ? 0.18 : 0.12);
+
+  /// Readable foreground for any fill. Pastels get ink in both themes —
+  /// this is what keeps dark mode from painting white text on peach.
+  static Color onFill(Color fill) =>
+      ThemeData.estimateBrightnessForColor(fill) == Brightness.light
+          ? ink
+          : nightInk;
+
+  /// Bottom clearance for tab scrolls. With `extendBody`, the Scaffold
+  /// already folds the floating nav + safe area into padding.bottom;
+  /// add room for the FAB so the last item never hides behind it.
   static double tabBottom(BuildContext context) =>
-      100 + MediaQuery.of(context).padding.bottom;
+      MediaQuery.of(context).padding.bottom + 88;
 
-  // Signature kawaii sticker shadow: chunky offset + soft lift.
-  // Craft-floor collision note: floor bans zero-blur hard offsets as
-  // decoration, but Kawaii Pop REQUIRES offset sticker depth as identity.
-  // Override named here: style wins for depth; contrast/focus still hold.
-  static List<BoxShadow> stickerShadow(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final edge = dark ? Colors.white : ink;
-    return [
-      BoxShadow(
-        color: edge,
-        offset: const Offset(4, 4),
-        blurRadius: 0,
-        spreadRadius: 0,
-      ),
-      const BoxShadow(
-        color: Color(0x14000000),
-        offset: Offset(0, 10),
-        blurRadius: 24,
-      ),
-    ];
+  /// Sticker depth: one hard offset, no blur. Reserved for the main
+  /// object on a screen, buttons, the FAB and the nav bar.
+  static List<BoxShadow> sticker(BuildContext context, {double offset = 4}) =>
+      [BoxShadow(color: edgeOf(context), offset: Offset(offset, offset))];
+
+  static TextTheme _text(Color fg) {
+    final muted = fg.withValues(alpha: 0.68);
+    TextStyle s(double size, FontWeight w,
+            {double height = 1.25, double spacing = 0, Color? color}) =>
+        TextStyle(
+            fontFamily: displayFamily,
+            fontSize: size,
+            fontWeight: w,
+            height: height,
+            letterSpacing: spacing,
+            color: color ?? fg);
+    return TextTheme(
+      displayLarge: s(48, FontWeight.w900, height: 1.05, spacing: -1),
+      displayMedium: s(40, FontWeight.w900, height: 1.05, spacing: -0.8),
+      displaySmall: s(34, FontWeight.w900, height: 1.1, spacing: -0.6),
+      headlineLarge: s(30, FontWeight.w900, height: 1.15, spacing: -0.4),
+      headlineMedium: s(28, FontWeight.w900, height: 1.15, spacing: -0.4),
+      headlineSmall: s(26, FontWeight.w900, height: 1.15, spacing: -0.3),
+      titleLarge: s(20, FontWeight.w800),
+      titleMedium: s(17, FontWeight.w800),
+      titleSmall: s(15, FontWeight.w800),
+      bodyLarge: s(16, FontWeight.w600, height: 1.45),
+      bodyMedium: s(15, FontWeight.w600, height: 1.4),
+      bodySmall: s(13, FontWeight.w600, height: 1.35, color: muted),
+      labelLarge: s(16, FontWeight.w800),
+      labelMedium: s(13, FontWeight.w800),
+      labelSmall: s(12, FontWeight.w700),
+    );
   }
 
-  static List<BoxShadow> stickerShadowSmall(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final edge = dark ? Colors.white : ink;
-    return [
-      BoxShadow(color: edge, offset: const Offset(3, 3), blurRadius: 0),
-      const BoxShadow(
-          color: Color(0x14000000), offset: Offset(0, 6), blurRadius: 16),
-    ];
-  }
-
-  static ThemeData light() {
-    final nunito = GoogleFonts.nunitoTextTheme();
-    final inter = GoogleFonts.interTextTheme();
-    final scheme = ColorScheme.fromSeed(
-      seedColor: peach,
-      primary: ink,
-      brightness: Brightness.light,
-    ).copyWith(
+  static ThemeData _build({required bool dark}) {
+    final bg = dark ? night : cream;
+    final surface = dark ? nightCard : paper;
+    final fg = dark ? nightInk : ink;
+    final scheme = (dark
+            ? const ColorScheme.dark()
+            : const ColorScheme.light())
+        .copyWith(
       primary: peach,
       onPrimary: ink,
       secondary: sky,
       onSecondary: ink,
       tertiary: sunny,
-      surface: paper,
-      onSurface: ink,
+      onTertiary: ink,
+      surface: surface,
+      onSurface: fg,
+      surfaceContainerHighest: surface,
       error: bubble,
+      onError: ink,
+      outline: fg,
+      surfaceTint: Colors.transparent,
     );
+    final text = _text(fg);
     return ThemeData(
       useMaterial3: true,
+      brightness: dark ? Brightness.dark : Brightness.light,
       colorScheme: scheme,
-      scaffoldBackgroundColor: cream,
-      textTheme: nunito.copyWith(
-        displayLarge: nunito.displayLarge?.copyWith(
-            fontWeight: FontWeight.w900, color: ink, letterSpacing: -0.5),
-        displayMedium: nunito.displayMedium
-            ?.copyWith(fontWeight: FontWeight.w800, color: ink),
-        headlineLarge: nunito.headlineLarge
-            ?.copyWith(fontWeight: FontWeight.w800, color: ink),
-        headlineMedium: nunito.headlineMedium
-            ?.copyWith(fontWeight: FontWeight.w800, color: ink),
-        titleLarge: nunito.titleLarge
-            ?.copyWith(fontWeight: FontWeight.w800, color: ink),
-        bodyLarge: inter.bodyLarge?.copyWith(color: ink),
-        bodyMedium: inter.bodyMedium?.copyWith(color: ink),
-        labelLarge:
-            inter.labelLarge?.copyWith(fontWeight: FontWeight.w700, color: ink),
+      fontFamily: displayFamily,
+      scaffoldBackgroundColor: bg,
+      textTheme: text,
+      iconTheme: IconThemeData(color: fg),
+      progressIndicatorTheme: ProgressIndicatorThemeData(color: fg),
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: fg,
+        selectionColor: sky.withValues(alpha: 0.5),
+        selectionHandleColor: fg,
       ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: cream,
-        foregroundColor: ink,
+      appBarTheme: AppBarTheme(
+        backgroundColor: bg,
+        foregroundColor: fg,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
         centerTitle: false,
+        titleTextStyle: text.headlineSmall,
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: surface,
+        surfaceTintColor: Colors.transparent,
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
       ),
     );
   }
 
-  static ThemeData dark() {
-    final nunito = GoogleFonts.nunitoTextTheme(ThemeData.dark().textTheme);
-    final inter = GoogleFonts.interTextTheme(ThemeData.dark().textTheme);
-    return ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.dark,
-      colorScheme: const ColorScheme.dark(
-        primary: peach,
-        onPrimary: ink,
-        secondary: sky,
-        onSecondary: ink,
-        tertiary: sunny,
-        surface: nightCard,
-        onSurface: Color(0xFFF5F5F5),
-        error: bubble,
-      ),
-      scaffoldBackgroundColor: night,
-      textTheme: nunito.copyWith(
-        displayLarge: nunito.displayLarge
-            ?.copyWith(fontWeight: FontWeight.w900, color: Colors.white),
-        headlineMedium: nunito.headlineMedium
-            ?.copyWith(fontWeight: FontWeight.w800, color: Colors.white),
-        titleLarge: nunito.titleLarge
-            ?.copyWith(fontWeight: FontWeight.w800, color: Colors.white),
-        bodyLarge: inter.bodyLarge?.copyWith(color: const Color(0xFFF5F5F5)),
-        bodyMedium: inter.bodyMedium?.copyWith(color: const Color(0xFFF5F5F5)),
-      ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: night,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-    );
-  }
+  static ThemeData light() => _build(dark: false);
+  static ThemeData dark() => _build(dark: true);
 }

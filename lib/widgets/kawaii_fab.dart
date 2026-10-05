@@ -29,8 +29,7 @@ const _metas = {
 
 /// Sticker-style contextual create button: label and button fused into
 /// one extended FAB pill. One tab = one action: notes -> note,
-/// piles -> pile, dates -> date. Ink is outline-only; every fill is
-/// a kawaii-pop pastel.
+/// piles -> pile, dates -> date.
 class KawaiiCreateFab extends StatelessWidget {
   final CreateKind kind;
   final VoidCallback onTap;
@@ -40,8 +39,7 @@ class KawaiiCreateFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final m = _metas[kind]!;
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final edge = dark ? Colors.white : Kawaii.ink;
+    final edge = Kawaii.edgeOf(context);
     return Semantics(
       button: true,
       label: m.fabLabel,
@@ -50,11 +48,11 @@ class KawaiiCreateFab extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         child: Container(
           padding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+              const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
           decoration: BoxDecoration(
             color: m.bg,
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: edge, width: 3),
+            border: Border.all(color: edge, width: Kawaii.borderW),
             boxShadow: [
               BoxShadow(color: edge, offset: const Offset(4, 4)),
             ],
@@ -62,14 +60,15 @@ class KawaiiCreateFab extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(m.icon, size: 26, color: Kawaii.ink),
-              const SizedBox(width: 10),
+              Icon(m.icon, size: 24, color: Kawaii.ink),
+              const SizedBox(width: 8),
               Text(
                 m.fabLabel,
                 style: const TextStyle(
+                  fontFamily: Kawaii.displayFamily,
                   color: Kawaii.ink,
                   fontWeight: FontWeight.w900,
-                  fontSize: 16,
+                  fontSize: 15,
                 ),
               ),
             ],
@@ -113,6 +112,7 @@ Future<void> showCreateSheet(
       context: context,
       builder: (d) => Dialog(
         backgroundColor: Colors.transparent,
+        elevation: 0,
         insetPadding: const EdgeInsets.all(20),
         child: KawaiiAlert(
           title: '$label pasted!',
@@ -261,14 +261,13 @@ class _ComposerSheetState extends State<_ComposerSheet> {
   @override
   Widget build(BuildContext context) {
     final m = _metas[widget.kind]!;
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final edge = dark ? Colors.white : Kawaii.ink;
+    final edge = Kawaii.edgeOf(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
       decoration: BoxDecoration(
-        color: dark ? Kawaii.nightCard : Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-        border: Border.all(color: edge, width: 3),
+        color: Kawaii.cardOf(context),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        border: Border.all(color: edge, width: Kawaii.borderW),
         boxShadow: [BoxShadow(color: edge, offset: const Offset(4, -4))],
       ),
       child: SingleChildScrollView(
@@ -278,31 +277,27 @@ class _ComposerSheetState extends State<_ComposerSheet> {
           children: [
             Center(
               child: Container(
-                width: 48,
-                height: 6,
+                width: 44,
+                height: 5,
                 decoration: BoxDecoration(
                   color: m.bg,
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: edge, width: 2),
+                  border: Border.all(color: edge, width: 1.5),
                 ),
               ),
             ),
             const SizedBox(height: 14),
             Row(children: [
-              KawaiiIcon(icon: m.icon, bg: m.bg, size: 48, iconSize: 24),
+              KawaiiIcon(icon: m.icon, bg: m.bg, size: 44, iconSize: 22, outlined: true),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Fresh ${m.label.toLowerCase()}',
-                          style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w900,
-                              fontFamily: Kawaii.displayFamily)),
+                          style: Theme.of(context).textTheme.titleLarge),
                       Text(_subtitle(),
-                          style: const TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.w500)),
+                          style: Theme.of(context).textTheme.bodySmall),
                     ]),
               ),
             ]),
@@ -335,64 +330,61 @@ class _ComposerSheetState extends State<_ComposerSheet> {
   }
 
   List<Widget> _fields() {
+    final edge = Kawaii.edgeOf(context);
     switch (widget.kind) {
       case CreateKind.note:
         return [
           KawaiiInput(
               hint: 'Left oat latte in the fridge…',
-              label: 'NOTE',
+              label: 'Note',
               controller: _noteCtrl,
               maxLines: 3),
-          const SizedBox(height: 12),
-          Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: Kawaii.sunny,
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: Kawaii.ink, width: 2),
-            ),
-            child: const Text('COLOR',
-                style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
-                    color: Kawaii.ink)),
+          const SizedBox(height: 14),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 8),
+            child: Text('Color', style: Theme.of(context).textTheme.titleSmall),
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: List.generate(Kawaii.notePalette.length, (i) {
-              final active = noteColor == i;
-              return GestureDetector(
-                onTap: () => setState(() => noteColor = i),
-                child: Container(
-                  width: 48,
-                  height: 48,
-                  margin: EdgeInsets.only(
-                      right: i == Kawaii.notePalette.length - 1 ? 0 : 10),
-                  decoration: BoxDecoration(
-                    color: Kawaii.notePalette[i],
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                        color: active
-                            ? Kawaii.ink
-                            : Kawaii.ink.withValues(alpha: 0.25),
-                        width: active ? 3 : 2),
-                    boxShadow: active
-                        ? const [
-                            BoxShadow(
-                                color: Kawaii.ink,
-                                offset: Offset(3, 3))
-                          ]
-                        : null,
-                  ),
-                  alignment: Alignment.center,
-                  child: active
-                      ? const Icon(Icons.check_rounded,
-                          size: 22, color: Kawaii.ink)
-                      : null,
-                ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final count = Kawaii.notePalette.length;
+              final maxItemSize = 44.0;
+              final gap = 8.0;
+              final itemSize = ((constraints.maxWidth - (gap * (count - 1))) / count)
+                  .clamp(32.0, maxItemSize);
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: List.generate(count, (i) {
+                  final active = noteColor == i;
+                  return Semantics(
+                    button: true,
+                    selected: active,
+                    label: '${Kawaii.notePaletteNames[i]} color',
+                    child: GestureDetector(
+                      onTap: () => setState(() => noteColor = i),
+                      child: Container(
+                        width: itemSize,
+                        height: itemSize,
+                        decoration: BoxDecoration(
+                          color: Kawaii.notePalette[i],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: active ? edge : edge.withValues(alpha: 0.25),
+                              width: active ? 3 : 2),
+                          boxShadow: active
+                              ? [BoxShadow(color: edge, offset: const Offset(2, 2))]
+                              : null,
+                        ),
+                        alignment: Alignment.center,
+                        child: active
+                            ? const Icon(Icons.check_rounded,
+                                size: 20, color: Kawaii.ink)
+                            : null,
+                      ),
+                    ),
+                  );
+                }),
               );
-            }),
+            },
           ),
         ];
       case CreateKind.pile:
@@ -401,12 +393,12 @@ class _ComposerSheetState extends State<_ComposerSheet> {
           const SizedBox(height: 12),
           KawaiiInput(
               hint: 'e.g. Beach daze',
-              label: 'TITLE',
+              label: 'Title',
               controller: _pileTitleCtrl),
           const SizedBox(height: 12),
           KawaiiInput(
               hint: 'e.g. Riverside park',
-              label: 'LOCATION',
+              label: 'Location',
               controller: _pileLocCtrl,
               prefix: Icons.place_outlined),
         ];
@@ -414,18 +406,18 @@ class _ComposerSheetState extends State<_ComposerSheet> {
         return [
           KawaiiInput(
               hint: 'e.g. Sunset picnic',
-              label: 'TITLE',
+              label: 'Title',
               controller: _dateTitleCtrl),
           const SizedBox(height: 12),
           KawaiiInput(
               hint: 'Blanket, oat lattes, camera…',
-              label: 'NOTE',
+              label: 'Note',
               controller: _dateNoteCtrl,
               maxLines: 2),
           const SizedBox(height: 12),
           KawaiiInput(
               hint: 'e.g. Riverside park',
-              label: 'PLACE',
+              label: 'Place',
               controller: _datePlaceCtrl,
               prefix: Icons.place_outlined),
           const SizedBox(height: 12),
@@ -443,40 +435,40 @@ class _ComposerSheetState extends State<_ComposerSheet> {
   }
 
   Widget _photoPicker() {
+    final edge = Kawaii.edgeOf(context);
     return GestureDetector(
       onTap: _pickImages,
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Kawaii.ink, width: 2.5),
+          color: Kawaii.cardOf(context),
+          borderRadius: BorderRadius.circular(Kawaii.radiusInner),
+          border: Border.all(color: edge, width: Kawaii.paperBorderW),
         ),
         child: pileImages.isEmpty
             ? Row(children: [
                 const KawaiiIcon(
                     icon: Icons.add_photo_alternate_outlined,
                     bg: Kawaii.skySubtle,
-                    size: 52,
-                    iconSize: 26),
+                    size: 48,
+                    iconSize: 24,
+                    outlined: true),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(picking ? 'Opening gallery…' : 'Add photos',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w800, fontSize: 15)),
-                        const Text('From your gallery, as many as you like',
-                            style: TextStyle(
-                                fontSize: 12, fontWeight: FontWeight.w600)),
+                            style: Theme.of(context).textTheme.titleSmall),
+                        Text('From your gallery, up to 9 photos',
+                            style: Theme.of(context).textTheme.bodySmall),
                       ]),
                 ),
                 if (picking)
                   const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(strokeWidth: 3)),
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2.5)),
               ])
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -494,31 +486,31 @@ class _ComposerSheetState extends State<_ComposerSheet> {
                       clipBehavior: Clip.none,
                       children: [
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(12),
                           child: _PileThumb(file: pileImages[i]),
                         ),
                         Positioned(
-                          top: -8,
-                          right: -8,
+                          top: -6,
+                          right: -6,
                           child: GestureDetector(
                             onTap: () =>
                                 setState(() => pileImages.removeAt(i)),
                             child: Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Kawaii.cardOf(context),
                                 shape: BoxShape.circle,
                               ),
                               child: Container(
-                                padding: const EdgeInsets.all(4),
+                                padding: const EdgeInsets.all(3),
                                 decoration: BoxDecoration(
                                   color: Kawaii.bubble,
                                   shape: BoxShape.circle,
                                   border: Border.all(
-                                      color: Kawaii.ink, width: 2),
+                                      color: edge, width: 1.5),
                                 ),
                                 child: const Icon(Icons.close_rounded,
-                                    size: 14, color: Kawaii.ink),
+                                    size: 13, color: Kawaii.ink),
                               ),
                             ),
                           ),
@@ -528,11 +520,11 @@ class _ComposerSheetState extends State<_ComposerSheet> {
                   ),
                   const SizedBox(height: 10),
                   Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    padding: const EdgeInsets.symmetric(vertical: 9),
                     decoration: BoxDecoration(
                       color: Kawaii.skySubtle,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: Kawaii.ink, width: 2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: edge, width: 2),
                     ),
                     alignment: Alignment.center,
                     child: Text(
@@ -540,7 +532,10 @@ class _ComposerSheetState extends State<_ComposerSheet> {
                             ? 'Opening gallery…'
                             : 'Add more • ${pileImages.length} picked',
                         style: const TextStyle(
-                            fontWeight: FontWeight.w800, fontSize: 13)),
+                            fontFamily: Kawaii.displayFamily,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                            color: Kawaii.ink)),
                   ),
                 ],
               ),
@@ -581,16 +576,15 @@ class _PileThumb extends StatelessWidget {
             color: Kawaii.skySubtle,
             alignment: Alignment.center,
             child: const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(strokeWidth: 3)));
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2.5)));
       },
     );
   }
 }
 
-/// Sticker-style month picker. Ink is outline-only; the picked day
-/// owns the sunny fill, today gets a bubble dot.
+/// Month picker with dark-mode support and responsive date cells.
 class KawaiiCalendar extends StatelessWidget {
   final DateTime month;
   final DateTime selected;
@@ -618,28 +612,25 @@ class KawaiiCalendar extends StatelessWidget {
     final today = DateTime.now();
     final first = DateTime(month.year, month.month);
     final lead = first.weekday - 1;
-    // Day 0 of next month = last day of this month (works across Dec->Jan).
     final count = DateTime(month.year, month.month + 1, 0).day;
+    final edge = Kawaii.edgeOf(context);
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Kawaii.cream,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Kawaii.ink, width: 2.5),
+        color: Kawaii.cardOf(context),
+        borderRadius: BorderRadius.circular(Kawaii.radiusInner),
+        border: Border.all(color: edge, width: Kawaii.paperBorderW),
       ),
       child: Column(
         children: [
           Row(children: [
-            _nav(Icons.chevron_left_rounded, onPrev),
+            _nav(context, Icons.chevron_left_rounded, onPrev),
             Expanded(
               child: Text('${months[month.month - 1]} ${month.year}',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontFamily: Kawaii.displayFamily,
-                      fontSize: 16)),
+                  style: Theme.of(context).textTheme.titleSmall),
             ),
-            _nav(Icons.chevron_right_rounded, onNext),
+            _nav(context, Icons.chevron_right_rounded, onNext),
           ]),
           const SizedBox(height: 8),
           GridView.builder(
@@ -652,9 +643,10 @@ class KawaiiCalendar extends StatelessWidget {
             itemBuilder: (_, i) => Center(
               child: Text(weekdays[i],
                   style: TextStyle(
+                      fontFamily: Kawaii.displayFamily,
                       fontWeight: FontWeight.w800,
                       fontSize: 12,
-                      color: Kawaii.ink.withValues(alpha: 0.5))),
+                      color: Kawaii.mutedOf(context))),
             ),
           ),
           GridView.builder(
@@ -679,49 +671,47 @@ class KawaiiCalendar extends StatelessWidget {
                 selected: isSel,
                 label: '${months[month.month - 1]} $day',
                 child: GestureDetector(
-                onTap: () => onSelect(date),
-                behavior: HitTestBehavior.opaque,
-                child: Center(
-                  child: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: isSel ? Kawaii.sunny : Colors.transparent,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                          color: isSel ? Kawaii.ink : Colors.transparent,
-                          width: 2.5),
-                      boxShadow: isSel
-                          ? const [
-                              BoxShadow(
-                                  color: Kawaii.ink,
-                                  offset: Offset(2, 2))
-                            ]
-                          : null,
-                    ),
-                    alignment: Alignment.center,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('$day',
-                            style: TextStyle(
-                                fontWeight: isSel
-                                    ? FontWeight.w900
-                                    : FontWeight.w700,
-                                fontSize: 14)),
-                        if (isToday && !isSel)
-                          Container(
-                            width: 6,
-                            height: 6,
-                            margin: const EdgeInsets.only(top: 1),
-                            decoration: const BoxDecoration(
-                                color: Kawaii.bubble,
-                                shape: BoxShape.circle),
-                          ),
-                      ],
+                  onTap: () => onSelect(date),
+                  behavior: HitTestBehavior.opaque,
+                  child: Center(
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: isSel ? Kawaii.sunny : Colors.transparent,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                            color: isSel ? edge : Colors.transparent,
+                            width: 2),
+                        boxShadow: isSel
+                            ? [BoxShadow(color: edge, offset: const Offset(2, 2))]
+                            : null,
+                      ),
+                      alignment: Alignment.center,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('$day',
+                              style: TextStyle(
+                                  fontFamily: Kawaii.displayFamily,
+                                  fontWeight: isSel
+                                      ? FontWeight.w900
+                                      : FontWeight.w700,
+                                  fontSize: 13,
+                                  color: isSel ? Kawaii.ink : Kawaii.textOf(context))),
+                          if (isToday && !isSel)
+                            Container(
+                              width: 5,
+                              height: 5,
+                              margin: const EdgeInsets.only(top: 1),
+                              decoration: const BoxDecoration(
+                                  color: Kawaii.bubble,
+                                  shape: BoxShape.circle),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
                 ),
               );
             },
@@ -731,27 +721,28 @@ class KawaiiCalendar extends StatelessWidget {
     );
   }
 
-  Widget _nav(IconData icon, VoidCallback onTap) {
+  Widget _nav(BuildContext context, IconData icon, VoidCallback onTap) {
     final label = icon == Icons.chevron_left_rounded
         ? 'Previous month'
         : 'Next month';
+    final edge = Kawaii.edgeOf(context);
     return Semantics(
       button: true,
       label: label,
       child: GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Kawaii.ink, width: 2.5),
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: Kawaii.cardOf(context),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: edge, width: Kawaii.paperBorderW),
+          ),
+          alignment: Alignment.center,
+          child: Icon(icon, size: 22, color: Kawaii.textOf(context)),
         ),
-        alignment: Alignment.center,
-        child: Icon(icon, size: 24, color: Kawaii.ink),
-      ),
       ),
     );
   }

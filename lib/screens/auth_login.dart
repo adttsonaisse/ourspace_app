@@ -176,6 +176,7 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
 
   @override
   Widget build(BuildContext context) {
+    final edge = Kawaii.edgeOf(context);
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -183,11 +184,11 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
           icon: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Kawaii.cardOf(context),
               shape: BoxShape.circle,
-              border: Border.all(color: Kawaii.ink, width: 2.5),
+              border: Border.all(color: edge, width: Kawaii.paperBorderW),
             ),
-            child: const Icon(Icons.arrow_back_rounded, size: 18),
+            child: Icon(Icons.arrow_back_rounded, size: 18, color: Kawaii.textOf(context)),
           ),
         ),
         title: const Text('hi, lovebirds',
@@ -203,12 +204,10 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
             Container(
               padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Kawaii.cardOf(context),
                 borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: Kawaii.ink, width: 3),
-                boxShadow: const [
-                  BoxShadow(color: Kawaii.ink, offset: Offset(4, 4))
-                ],
+                border: Border.all(color: edge, width: Kawaii.borderW),
+                boxShadow: Kawaii.sticker(context),
               ),
               child: Row(
                 children: [
@@ -338,6 +337,7 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
   }
 
   Widget _seg(String label, bool active, Color color) {
+    final edge = Kawaii.edgeOf(context);
     return GestureDetector(
       onTap: () => _switchMode(label == 'Login'),
       child: AnimatedContainer(
@@ -347,12 +347,14 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
           color: active ? color : Colors.transparent,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-              color: active ? Kawaii.ink : Colors.transparent, width: 2.5),
+              color: active ? edge : Colors.transparent, width: Kawaii.paperBorderW),
         ),
         alignment: Alignment.center,
         child: Text(label,
-            style: const TextStyle(
-                fontWeight: FontWeight.w900, fontFamily: Kawaii.displayFamily)),
+            style: TextStyle(
+                fontWeight: FontWeight.w900,
+                fontFamily: Kawaii.displayFamily,
+                color: active ? Kawaii.ink : Kawaii.textOf(context))),
       ),
     );
   }

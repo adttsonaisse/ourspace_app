@@ -206,25 +206,18 @@ class _AppShellState extends State<AppShell> {
     final edge = Kawaii.edgeOf(context);
     final barBg = Kawaii.cardOf(context);
     final fabKind = _fabKind;
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return Scaffold(
       appBar: AppBar(
         title: Row(children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: colors[idx],
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: edge, width: 2.5),
+          Text(
+            titles[idx],
+            style: TextStyle(
+              fontFamily: Kawaii.displayFamily,
+              fontWeight: FontWeight.w900,
+              fontSize: 24,
+              color: Kawaii.textOf(context),
             ),
-            child: Row(children: [
-              Icon(icons[idx], size: 16, color: Kawaii.ink),
-              const SizedBox(width: 6),
-              Text(titles[idx],
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 14,
-                      color: Kawaii.ink)),
-            ]),
           ),
           const Spacer(),
           KawaiiAvatarPair(
@@ -251,7 +244,7 @@ class _AppShellState extends State<AppShell> {
                   color: Kawaii.sunnySubtle,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                      color: Kawaii.edgeOf(context), width: 2.5),
+                      color: edge, width: Kawaii.paperBorderW),
                 ),
                 child: Row(
                   children: [
@@ -262,6 +255,7 @@ class _AppShellState extends State<AppShell> {
                       child: Text(
                           'ourspace ${_update!.tag} is here — tap to update',
                           style: const TextStyle(
+                              fontFamily: Kawaii.displayFamily,
                               fontWeight: FontWeight.w800,
                               fontSize: 13,
                               color: Kawaii.ink)),
@@ -281,106 +275,121 @@ class _AppShellState extends State<AppShell> {
             ),
           Expanded(
             child: Stack(
-        children: [
-          if (_spaceLoading)
-            const Center(child: CircularProgressIndicator())
-          else
-            IndexedStack(index: idx, children: [
-              HomeTab(
-                  key: ValueKey('home-$_tick'),
-                  space: _space,
-                  notesRepo: _notes,
-                  ritualsRepo: _rituals,
-                  onJump: _jump),
-              NotesTab(
-                  key: ValueKey('notes-$_tick'),
-                  spaceId: _spaceId,
-                  notesRepo: _notes,
-                  myUid: _uid),
-              GalleriesTab(
-                  key: ValueKey('piles-$_tick'),
-                  spaceId: _spaceId,
-                  pilesRepo: _piles,
-                  photoStore: _photos),
-              DatesTab(
-                  key: ValueKey('dates-$_tick'),
-                  spaceId: _spaceId,
-                  datesRepo: _dates,
-                  onSchedule: _scheduleDate),
-              SettingsTab(
-                key: ValueKey('you-$_tick'),
-                auth: _auth,
-                spaceRepo: _spaces,
-                space: _space,
-                notesRepo: _notes,
-                datesRepo: _dates,
-                ritualsRepo: _rituals,
-              ),
-            ]),
-          if (fabKind != null)
-            Positioned(
-              right: 20,
-              bottom: 100,
-              child: KawaiiCreateFab(
-                kind: fabKind,
-                onTap: _createForCurrentTab,
-              ),
+              children: [
+                if (_spaceLoading)
+                  const Center(child: CircularProgressIndicator())
+                else
+                  IndexedStack(index: idx, children: [
+                    HomeTab(
+                        key: ValueKey('home-$_tick'),
+                        space: _space,
+                        notesRepo: _notes,
+                        datesRepo: _dates,
+                        ritualsRepo: _rituals,
+                        onJump: _jump),
+                    NotesTab(
+                        key: ValueKey('notes-$_tick'),
+                        spaceId: _spaceId,
+                        notesRepo: _notes,
+                        myUid: _uid),
+                    GalleriesTab(
+                        key: ValueKey('piles-$_tick'),
+                        spaceId: _spaceId,
+                        pilesRepo: _piles,
+                        photoStore: _photos),
+                    DatesTab(
+                        key: ValueKey('dates-$_tick'),
+                        spaceId: _spaceId,
+                        datesRepo: _dates,
+                        onSchedule: _scheduleDate),
+                    SettingsTab(
+                      key: ValueKey('you-$_tick'),
+                      auth: _auth,
+                      spaceRepo: _spaces,
+                      space: _space,
+                      notesRepo: _notes,
+                      datesRepo: _dates,
+                      ritualsRepo: _rituals,
+                    ),
+                  ]),
+                if (fabKind != null)
+                  Positioned(
+                    right: 16,
+                    bottom: 100 + bottomInset,
+                    child: KawaiiCreateFab(
+                      kind: fabKind,
+                      onTap: _createForCurrentTab,
+                    ),
+                  ),
+              ],
             ),
-        ],
-      ),
           ),
         ],
       ),
       extendBody: true,
       bottomNavigationBar: SafeArea(
         child: Container(
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
           decoration: BoxDecoration(
             color: barBg,
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: edge, width: 3),
+            border: Border.all(color: edge, width: Kawaii.borderW),
             boxShadow: [
               BoxShadow(color: edge, offset: const Offset(4, 4)),
             ],
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: List.generate(5, (i) {
               final active = i == idx;
               final inactive = Kawaii.textOf(context).withValues(alpha: 0.45);
-              return Semantics(
-                button: true,
-                selected: active,
-                label: titles[i],
-                child: GestureDetector(
-                onTap: () => _jump(i),
-                behavior: HitTestBehavior.opaque,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  padding: EdgeInsets.symmetric(
-                      horizontal: active ? 14 : 12, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: active ? colors[i] : Colors.transparent,
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                        color: active ? edge : Colors.transparent,
-                        width: 2.5),
+              return Expanded(
+                flex: active ? 3 : 2,
+                child: Semantics(
+                  button: true,
+                  selected: active,
+                  label: titles[i],
+                  child: GestureDetector(
+                    onTap: () => _jump(i),
+                    behavior: HitTestBehavior.opaque,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: active ? colors[i] : Colors.transparent,
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                            color: active ? edge : Colors.transparent,
+                            width: 2),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(icons[i],
+                              size: 20,
+                              color: active ? Kawaii.ink : inactive),
+                          if (active) ...[
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                titles[i],
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontFamily: Kawaii.displayFamily,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 12,
+                                  color: Kawaii.ink,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
                   ),
-                  child: Row(children: [
-                    Icon(icons[i],
-                        size: 22,
-                        color: active ? Kawaii.ink : inactive),
-                    if (active) ...[
-                      const SizedBox(width: 6),
-                      Text(titles[i],
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w900,
-                              fontSize: 13,
-                              color: Kawaii.ink)),
-                    ],
-                  ]),
-                ),
                 ),
               );
             }),

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -116,9 +115,6 @@ class _SettingsTabState extends State<SettingsTab> {
     } catch (_) {}
   }
 
-  /// Manual update check from Settings. Same version rule as the shell
-  /// auto-check (same -> quiet snackbar, newer -> dialog), except a
-  /// previously-skipped tag is shown again since the user asked explicitly.
   Future<void> _manualCheckUpdate() async {
     if (_checkingUpdate) return;
     setState(() => _checkingUpdate = true);
@@ -281,12 +277,12 @@ class _SettingsTabState extends State<SettingsTab> {
           KawaiiCard(
             color: Kawaii.sunnySubtle,
             child: Row(children: [
-              KawaiiAvatar(text: _meInitial, bg: Kawaii.peach, size: 60),
-              const SizedBox(width: 6),
+              KawaiiAvatar(text: _meInitial, bg: Kawaii.peach, size: 56),
+              const SizedBox(width: 8),
               KawaiiAvatar(
                   text: paired ? _secondInitial : '?',
                   bg: paired ? Kawaii.sky : Colors.white,
-                  size: 60),
+                  size: 56),
               const SizedBox(width: 14),
               Expanded(
                   child: Column(
@@ -295,21 +291,30 @@ class _SettingsTabState extends State<SettingsTab> {
                     Text(space?.name ?? 'Just you for now',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.nunito(
-                            fontWeight: FontWeight.w900, fontSize: 18)),
+                        style: const TextStyle(
+                            fontFamily: Kawaii.displayFamily,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 18,
+                            color: Kawaii.ink)),
                     Text(
                         paired
                             ? 'paired • day ${daysSince(since!) + 1}'
                             : 'solo • pair to sync',
-                        style: const TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.w700)),
+                        style: TextStyle(
+                            fontFamily: Kawaii.displayFamily,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Kawaii.ink.withValues(alpha: 0.8))),
                     if (_pairNames != null)
                       Text(_pairNames!,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 4),
+                          style: TextStyle(
+                              fontFamily: Kawaii.displayFamily,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Kawaii.ink.withValues(alpha: 0.7))),
+                    const SizedBox(height: 6),
                     KawaiiPill(
                         label: paired ? 'paired' : 'solo',
                         color: Colors.white,
@@ -317,11 +322,8 @@ class _SettingsTabState extends State<SettingsTab> {
                   ])),
             ]),
           ),
-          const SizedBox(height: 14),
-          Text('Settings',
-              style: GoogleFonts.nunito(
-                  fontSize: 18, fontWeight: FontWeight.w900)),
-          const SizedBox(height: 8),
+          const SizedBox(height: 18),
+          const KawaiiSectionTitle('Settings'),
           KawaiiCard(
             color: Kawaii.cardOf(context),
             padding: EdgeInsets.zero,
@@ -334,12 +336,10 @@ class _SettingsTabState extends State<SettingsTab> {
                         child: Text('@$_myName',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 13)),
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700)),
                       ),
                       const SizedBox(width: 6),
-                      const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+                      Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Kawaii.mutedOf(context)),
                     ],
                   ),
                   onTap: _savingProfile ? null : _editProfile),
@@ -386,48 +386,57 @@ class _SettingsTabState extends State<SettingsTab> {
                     children: [
                       if (_version != null)
                         Text('v$_version',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w700, fontSize: 13)),
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700)),
                       if (_version != null) const SizedBox(width: 6),
                       if (_checkingUpdate)
                         const SizedBox(
-                          width: 16,
-                          height: 16,
+                          width: 14,
+                          height: 14,
                           child:
-                              CircularProgressIndicator(strokeWidth: 2.5),
+                              CircularProgressIndicator(strokeWidth: 2),
                         )
                       else
-                        const Icon(Icons.arrow_forward_ios_rounded,
-                            size: 16),
+                        Icon(Icons.arrow_forward_ios_rounded,
+                            size: 14, color: Kawaii.mutedOf(context)),
                     ],
                   ),
                   onTap: _checkingUpdate ? null : _manualCheckUpdate),
             ]),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           KawaiiCard(
+            sticker: false,
             color: Kawaii.pinkSubtle,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(children: const [
-                  KawaiiIcon(
+                Row(children: [
+                  const KawaiiIcon(
                       icon: Icons.heart_broken_rounded,
                       bg: Kawaii.bubble,
-                      size: 46,
-                      iconSize: 22),
-                  SizedBox(width: 10),
+                      size: 44,
+                      iconSize: 22,
+                      outlined: true),
+                  const SizedBox(width: 12),
                   Expanded(
                       child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
+                          children: const [
                         Text('Need space?',
-                            style: TextStyle(fontWeight: FontWeight.w800)),
-                        Text('Unpair, log out, or nuke everything.',
-                            style: TextStyle(fontSize: 12)),
+                            style: TextStyle(
+                                fontFamily: Kawaii.displayFamily,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 15,
+                                color: Kawaii.ink)),
+                        Text('Log out or leave this device.',
+                            style: TextStyle(
+                                fontFamily: Kawaii.displayFamily,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Kawaii.ink)),
                       ])),
                 ]),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 KawaiiButton(
                   label: _leaving ? 'Leaving…' : 'Log out',
                   icon: Icons.logout_rounded,
@@ -438,14 +447,22 @@ class _SettingsTabState extends State<SettingsTab> {
               ],
             ),
           ),
-          const SizedBox(height: 12),
-          const Center(
+          const SizedBox(height: 16),
+          Center(
               child: Row(mainAxisSize: MainAxisSize.min, children: [
             Text('made with ',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-            Icon(Icons.favorite_rounded, size: 14, color: Kawaii.bubble),
-            Text(' in ourspace • kawaii-pop',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                style: TextStyle(
+                    fontFamily: Kawaii.displayFamily,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Kawaii.mutedOf(context))),
+            const Icon(Icons.favorite_rounded, size: 14, color: Kawaii.bubble),
+            Text(' in ourspace',
+                style: TextStyle(
+                    fontFamily: Kawaii.displayFamily,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Kawaii.mutedOf(context))),
           ])),
         ],
       ),
@@ -459,18 +476,18 @@ class _SettingsTabState extends State<SettingsTab> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(children: [
         Container(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
               color: c,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: edge, width: 2.5)),
-          child: Icon(icon, size: 20, color: Kawaii.ink),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: edge, width: Kawaii.paperBorderW)),
+          child: Icon(icon, size: 18, color: Kawaii.ink),
         ),
         const SizedBox(width: 12),
         Expanded(
             child: Text(t,
-                style: const TextStyle(fontWeight: FontWeight.w700))),
-        trailing ?? const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+                style: Theme.of(context).textTheme.titleSmall)),
+        trailing ?? Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Kawaii.mutedOf(context)),
       ]),
     );
     if (onTap == null) return row;
@@ -486,10 +503,8 @@ class _SettingsTabState extends State<SettingsTab> {
   }
 
   Widget _div() =>
-      Container(height: 2, color: Kawaii.ink.withValues(alpha: 0.08));
+      Container(height: 1.5, color: Kawaii.lineOf(context));
 
-  /// Sticker-styled Switch: keeps the chunky outline look but reuses the
-  /// real Switch for keyboard + screen-reader semantics.
   Widget _stickerSwitch(
       {required bool value,
       required String label,
@@ -505,14 +520,12 @@ class _SettingsTabState extends State<SettingsTab> {
         inactiveTrackColor: Kawaii.cardOf(context),
         inactiveThumbColor: Colors.white,
         trackOutlineColor: WidgetStateProperty.all(edge),
-        trackOutlineWidth: WidgetStateProperty.all(2.5),
+        trackOutlineWidth: WidgetStateProperty.all(2.0),
       ),
     );
   }
 }
 
-/// Bottom-sheet form for editing the personal username.
-/// Owns its controller so dispose happens with the sheet route.
 class _EditProfileSheet extends StatefulWidget {
   final String initial;
   final String? email;
@@ -543,23 +556,17 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const KawaiiPill(label: 'personal profile', color: Kawaii.peach),
-            const SizedBox(height: 12),
-            const Text('Edit username',
-                style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    fontFamily: Kawaii.displayFamily)),
+            Text('Edit username',
+                style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 4),
             Text(
               widget.email ?? 'solo demo account',
-              style:
-                  const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 14),
             KawaiiInput(
               hint: 'e.g. alex_02',
-              label: 'USERNAME',
+              label: 'Username',
               controller: _ctrl,
               prefix: Icons.person_rounded,
               validator: (v) {

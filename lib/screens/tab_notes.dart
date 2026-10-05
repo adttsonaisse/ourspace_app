@@ -21,7 +21,6 @@ class NotesTab extends StatefulWidget {
 
 class _NotesTabState extends State<NotesTab> {
   int filter = 0; // 0 all, 1 pinned, 2 mine
-  bool showTip = true;
 
   List<Note> _visible(List<Note> all) {
     switch (filter) {
@@ -45,8 +44,17 @@ class _NotesTabState extends State<NotesTab> {
   }
 
   Future<void> _remove(Note n) async {
+    final ok = await confirmKawaii(
+      context,
+      title: 'Delete this note?',
+      message: '“${n.body}” will be removed for both of you.',
+      confirmLabel: 'Delete note',
+    );
+    if (!ok) return;
     try {
       await widget.notesRepo.remove(n.id);
+      if (!mounted) return;
+      showKawaiiToast(context, 'Note removed', kind: KawaiiAlertKind.info);
     } catch (e) {
       if (!mounted) return;
       showKawaiiToast(context, userMessage(e),
@@ -61,12 +69,6 @@ class _NotesTabState extends State<NotesTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const KawaiiPageHeader(
-            title: 'Little love notes',
-            subtitle: 'Tiny drops, big warmth. Say it before you forget it.',
-            icon: Icons.edit_note_rounded,
-            bg: Kawaii.bubble),
-          const SizedBox(height: 14),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(children: [
@@ -75,7 +77,7 @@ class _NotesTabState extends State<NotesTab> {
               _chip('Mine', 2),
             ]),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           StreamBuilder<List<Note>>(
             stream: widget.notesRepo.watch(widget.spaceId),
             builder: (context, snap) {
@@ -96,20 +98,17 @@ class _NotesTabState extends State<NotesTab> {
               }
               final all = snap.data ?? [];
               if (all.isEmpty) {
-                return const KawaiiAlert(
+                return const KawaiiEmpty(
                   title: 'No notes yet',
-                  message:
-                      'Tap + below to drop the first one for you two.',
-                  kind: KawaiiAlertKind.info,
+                  message: 'Tap + below to drop the first one for you two.',
                 );
               }
               final vis = _visible(all);
               if (vis.isEmpty) {
-                return const KawaiiAlert(
+                return const KawaiiEmpty(
                   title: 'No notes for this filter',
                   message:
-                      'Try another pile above, or tap + below to drop a fresh one.',
-                  kind: KawaiiAlertKind.info,
+                      'Try another filter above, or tap + below to drop a fresh note.',
                 );
               }
               return Column(
@@ -119,14 +118,6 @@ class _NotesTabState extends State<NotesTab> {
                         padding: const EdgeInsets.only(bottom: 12),
                         child: _noteCard(n),
                       )),
-                  if (showTip)
-                    KawaiiAlert(
-                      title: 'Fresh pages',
-                      message:
-                          'Tap + below to drop a fresh note. Long-press a note to remove it.',
-                      kind: KawaiiAlertKind.info,
-                      onClose: () => setState(() => showTip = false),
-                    ),
                 ],
               );
             },
@@ -144,20 +135,21 @@ class _NotesTabState extends State<NotesTab> {
       onLongPress: () => _remove(n),
       child: KawaiiCard(
         color: color,
+        padding: const EdgeInsets.all(16),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 48,
-              height: 48,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Kawaii.ink, width: 2.5),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Kawaii.ink, width: Kawaii.paperBorderW),
               ),
               alignment: Alignment.center,
               child: Icon(n.pinned ? Icons.push_pin_rounded : Icons.mail_rounded,
-                  size: 22, color: Kawaii.ink),
+                  size: 20, color: Kawaii.ink),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -166,25 +158,36 @@ class _NotesTabState extends State<NotesTab> {
                 children: [
                   Text(n.body,
                       style: const TextStyle(
-                          fontWeight: FontWeight.w800, fontSize: 15)),
-                  const SizedBox(height: 2),
+                          fontFamily: Kawaii.displayFamily,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                          height: 1.35,
+                          color: Kawaii.ink)),
+                  const SizedBox(height: 4),
                   Text(sub.toString(),
-                      style: const TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.w600)),
+                      style: TextStyle(
+                          fontFamily: Kawaii.displayFamily,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Kawaii.ink.withValues(alpha: 0.7))),
                 ],
               ),
             ),
-            GestureDetector(
-              onTap: () => _togglePin(n),
-              behavior: HitTestBehavior.opaque,
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                child: Icon(
-                    n.pinned
-                        ? Icons.push_pin_rounded
-                        : Icons.push_pin_outlined,
-                    size: 20,
-                    color: Kawaii.ink.withValues(alpha: n.pinned ? 1 : 0.4)),
+            Semantics(
+              button: true,
+              label: n.pinned ? 'Unpin note' : 'Pin note',
+              child: GestureDetector(
+                onTap: () => _togglePin(n),
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Icon(
+                      n.pinned
+                          ? Icons.push_pin_rounded
+                          : Icons.push_pin_outlined,
+                      size: 22,
+                      color: Kawaii.ink.withValues(alpha: n.pinned ? 1 : 0.45)),
+                ),
               ),
             ),
           ],
@@ -196,6 +199,7 @@ class _NotesTabState extends State<NotesTab> {
   Widget _chip(String l, int i) {
     final active = filter == i;
     const actives = [Kawaii.peach, Kawaii.sky, Kawaii.sunny];
+    final edge = Kawaii.edgeOf(context);
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: Semantics(
@@ -203,26 +207,27 @@ class _NotesTabState extends State<NotesTab> {
         selected: active,
         label: 'Filter $l',
         child: GestureDetector(
-        onTap: () => setState(() => filter = i),
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color:
-                active ? actives[i % actives.length] : Kawaii.cardOf(context),
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: Kawaii.edgeOf(context), width: 2.5),
-            boxShadow: active
-                ? [BoxShadow(color: Kawaii.edgeOf(context), offset: const Offset(3, 3))]
-                : null,
+          onTap: () => setState(() => filter = i),
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color:
+                  active ? actives[i % actives.length] : Kawaii.cardOf(context),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: edge, width: Kawaii.paperBorderW),
+              boxShadow: active
+                  ? [BoxShadow(color: edge, offset: const Offset(2, 2))]
+                  : null,
+            ),
+            child: Text(l,
+                style: TextStyle(
+                    fontFamily: Kawaii.displayFamily,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                    color: active ? Kawaii.ink : Kawaii.textOf(context))),
           ),
-          child: Text(l,
-              style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 13,
-                  color: Kawaii.ink)),
-        ),
         ),
       ),
     );
