@@ -308,6 +308,13 @@ String friendlySpaceError(Object e) {
   if (m.contains('duplicate key')) {
     return 'Almost there — tap Check code once more.';
   }
+  // Backend bug shape (e.g. 54001 RLS infinite recursion): nothing the
+  // user can fix by retyping — honest retry copy, fixed server-side.
+  if (m.contains('54001') ||
+      m.contains('stack depth') ||
+      m.contains('infinite recursion')) {
+    return 'Server hiccup. Try again in a bit.';
+  }
   if (m.contains('not a member')) return 'Join a space first.';
   if (m.contains('log in first')) return 'Log in first.';
   if (m.contains('does not exist') ||

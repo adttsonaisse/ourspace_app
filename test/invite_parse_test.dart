@@ -69,8 +69,14 @@ void main() {
     );
   });
 
-  test('Known join failures keep their specific copy', () {
+  test('Backend recursion shape gets honest retry copy', () {
     expect(
+      friendlySpaceError('stack depth limit exceeded (54001)'),
+      'Server hiccup. Try again in a bit.',
+    );
+  });
+
+  test('Known join failures keep their specific copy', () {    expect(
       friendlySpaceError('code not found'),
       "Hmm, that code didn't match. Check with your person.",
     );
