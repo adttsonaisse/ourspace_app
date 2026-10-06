@@ -9,6 +9,7 @@ import '../data/supa.dart';
 import '../shell.dart';
 import '../theme/kawaii.dart';
 import '../widgets/kawaii.dart';
+import '../widgets/kawaii_deco.dart';
 import 'auth_get_started.dart';
 
 /// Cold-start router: signed-in users skip auth, signed-out users land on
@@ -67,30 +68,40 @@ class _AuthGateState extends State<AuthGate> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(
+      return Scaffold(
         body: SafeArea(
           child: Center(
             child: KawaiiCard(
               color: Kawaii.peach,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'ourspace',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w900,
-                      fontFamily: Kawaii.displayFamily,
-                    ),
+              padding: EdgeInsets.zero,
+              child: KawaiiPolkaBg(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      KawaiiDoodles(),
+                      SizedBox(height: 10),
+                      KawaiiAppMascot(size: 64),
+                      SizedBox(height: 10),
+                      Text(
+                        'ourspace',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w900,
+                          fontFamily: Kawaii.displayFamily,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        ' unwrapping your stickers…',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      SizedBox(height: 16),
+                      CircularProgressIndicator(),
+                    ],
                   ),
-                  SizedBox(height: 4),
-                  Text(
-                    ' unwrapping your stickers…',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  SizedBox(height: 16),
-                  CircularProgressIndicator(),
-                ],
+                ),
               ),
             ),
           ),

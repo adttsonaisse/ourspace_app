@@ -4,6 +4,7 @@ import '../data/backend.dart';
 import '../data/repos.dart';
 import '../theme/kawaii.dart';
 import '../widgets/kawaii.dart';
+import '../widgets/kawaii_deco.dart';
 import 'auth_pairing.dart';
 import '../shell.dart';
 
@@ -229,12 +230,26 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
                     color: isLogin ? Kawaii.sky : Kawaii.peach,
                   ),
                   const SizedBox(height: 12),
-                  Text(
-                    isLogin ? 'Peek back inside' : 'Make your space',
-                    style: const TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w900,
-                        fontFamily: Kawaii.displayFamily),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          isLogin ? 'Peek back inside' : 'Make your space',
+                          style: const TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w900,
+                              fontFamily: Kawaii.displayFamily),
+                        ),
+                      ),
+                      const KawaiiSparkle(size: 22),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  const Row(
+                    children: [
+                      KawaiiDoodles(),
+                      Spacer(),
+                    ],
                   ),
                   const SizedBox(height: 6),
                   Text(

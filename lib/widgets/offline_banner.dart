@@ -3,6 +3,7 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import '../theme/kawaii.dart';
+import 'kawaii_deco.dart';
 
 class OfflineBanner extends StatelessWidget {
   final Stream<List<ConnectivityResult>>? stream;
@@ -35,6 +36,8 @@ class OfflineBanner extends StatelessWidget {
             child: const Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                KawaiiSparkle(size: 16, color: Kawaii.ink),
+                SizedBox(width: 8),
                 Icon(Icons.wifi_off_rounded,
                     size: 18, color: Kawaii.ink),
                 SizedBox(width: 8),

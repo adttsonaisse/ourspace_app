@@ -10,6 +10,7 @@ import 'data/repos.dart';
 import 'theme/kawaii.dart';
 import 'theme/prefs.dart';
 import 'widgets/kawaii.dart';
+import 'widgets/kawaii_deco.dart';
 import 'widgets/app_update_dialog.dart';
 import 'widgets/kawaii_fab.dart';
 import 'widgets/offline_banner.dart';
@@ -245,6 +246,8 @@ class _AppShellState extends State<AppShell> {
             second: _spaceLoading ? null : _partnerInitial,
             size: 32,
           ),
+          const SizedBox(width: 6),
+          KawaiiSparkle(size: 18),
         ]),
       ),
       body: Column(
@@ -280,6 +283,7 @@ class _AppShellState extends State<AppShell> {
                               fontSize: 13,
                               color: Kawaii.ink)),
                     ),
+                    const KawaiiSparkle(size: 16, color: Kawaii.ink),
                     GestureDetector(
                       onTap: _dismissUpdate,
                       behavior: HitTestBehavior.opaque,

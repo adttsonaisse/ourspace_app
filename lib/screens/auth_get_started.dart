@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/kawaii.dart';
 import '../widgets/kawaii.dart';
+import '../widgets/kawaii_deco.dart';
 import 'auth_login.dart';
 
 class GetStartedPage extends StatefulWidget {
@@ -50,23 +51,39 @@ class _GetStartedPageState extends State<GetStartedPage> {
               const SizedBox(height: 20),
               KawaiiCard(
                 color: Kawaii.peach,
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        KawaiiAvatar(text: 'M', bg: Kawaii.sky, size: 68),
-                        SizedBox(width: 8),
-                        Text('+',
-                            style: TextStyle(
-                                fontFamily: Kawaii.displayFamily,
-                                fontSize: 26,
-                                fontWeight: FontWeight.w900,
-                                color: Kawaii.ink)),
-                        SizedBox(width: 8),
-                        KawaiiAvatar(text: 'J', bg: Kawaii.sunny, size: 68),
-                      ],
-                    ),
+                padding: EdgeInsets.zero,
+                child: KawaiiPolkaBg(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        const Row(
+                          children: [
+                            KawaiiDoodles(),
+                            Spacer(),
+                            KawaiiSparkle(size: 20, color: Colors.white),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        const KawaiiAppMascot(size: 72),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            KawaiiAvatar(
+                                text: 'M', bg: Kawaii.sky, size: 68),
+                            SizedBox(width: 8),
+                            Text('+',
+                                style: TextStyle(
+                                    fontFamily: Kawaii.displayFamily,
+                                    fontSize: 26,
+                                    fontWeight: FontWeight.w900,
+                                    color: Kawaii.ink)),
+                            SizedBox(width: 8),
+                            KawaiiAvatar(
+                                text: 'J', bg: Kawaii.sunny, size: 68),
+                          ],
+                        ),
                     const SizedBox(height: 14),
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -106,111 +123,127 @@ class _GetStartedPageState extends State<GetStartedPage> {
                           height: 1.4,
                           color: Kawaii.ink.withValues(alpha: 0.8)),
                     ),
+                    const SizedBox(height: 10),
+                    const KawaiiDotDivider(count: 10),
                   ],
                 ),
               ),
+            ),
+          ),
               const SizedBox(height: 16),
               Row(
                 children: [
                   Expanded(
-                    child: KawaiiCard(
-                      sticker: false,
-                      color: Kawaii.skySubtle,
-                      padding: const EdgeInsets.all(10),
-                      child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const KawaiiIcon(
-                                icon: Icons.edit_note_rounded,
-                                bg: Colors.white,
-                                size: 36,
-                                iconSize: 20),
-                            const SizedBox(height: 8),
-                            const Text('Love notes',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                    fontFamily: Kawaii.displayFamily,
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 13,
-                                    color: Kawaii.ink)),
-                            Text('daily drops',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                    fontFamily: Kawaii.displayFamily,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: Kawaii.ink.withValues(alpha: 0.7))),
-                          ]),
+                    child: Transform.rotate(
+                      angle: kawaiiDecoTilt(0),
+                      child: KawaiiCard(
+                        sticker: false,
+                        color: Kawaii.skySubtle,
+                        padding: const EdgeInsets.all(10),
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const KawaiiIcon(
+                                  icon: Icons.edit_note_rounded,
+                                  bg: Colors.white,
+                                  size: 36,
+                                  iconSize: 20),
+                              const SizedBox(height: 8),
+                              const Text('Love notes',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                      fontFamily: Kawaii.displayFamily,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 13,
+                                      color: Kawaii.ink)),
+                              Text('daily drops',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                      fontFamily: Kawaii.displayFamily,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color:
+                                          Kawaii.ink.withValues(alpha: 0.7))),
+                            ]),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: KawaiiCard(
-                      sticker: false,
-                      color: Kawaii.sunnySubtle,
-                      padding: const EdgeInsets.all(10),
-                      child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const KawaiiIcon(
-                                icon: Icons.photo_library_rounded,
-                                bg: Colors.white,
-                                size: 36,
-                                iconSize: 20),
-                            const SizedBox(height: 8),
-                            const Text('Galleries',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                    fontFamily: Kawaii.displayFamily,
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 13,
-                                    color: Kawaii.ink)),
-                            Text('photo piles',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                    fontFamily: Kawaii.displayFamily,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: Kawaii.ink.withValues(alpha: 0.7))),
-                          ]),
+                    child: Transform.rotate(
+                      angle: kawaiiDecoTilt(1),
+                      child: KawaiiCard(
+                        sticker: false,
+                        color: Kawaii.sunnySubtle,
+                        padding: const EdgeInsets.all(10),
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const KawaiiIcon(
+                                  icon: Icons.photo_library_rounded,
+                                  bg: Colors.white,
+                                  size: 36,
+                                  iconSize: 20),
+                              const SizedBox(height: 8),
+                              const Text('Galleries',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                      fontFamily: Kawaii.displayFamily,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 13,
+                                      color: Kawaii.ink)),
+                              Text('photo piles',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                      fontFamily: Kawaii.displayFamily,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color:
+                                          Kawaii.ink.withValues(alpha: 0.7))),
+                            ]),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: KawaiiCard(
-                      sticker: false,
-                      color: Kawaii.mintSubtle,
-                      padding: const EdgeInsets.all(10),
-                      child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const KawaiiIcon(
-                                icon: Icons.calendar_month_rounded,
-                                bg: Colors.white,
-                                size: 36,
-                                iconSize: 20),
-                            const SizedBox(height: 8),
-                            const Text('Date plans',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                    fontFamily: Kawaii.displayFamily,
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 13,
-                                    color: Kawaii.ink)),
-                            Text('never forget',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                    fontFamily: Kawaii.displayFamily,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: Kawaii.ink.withValues(alpha: 0.7))),
-                          ]),
+                    child: Transform.rotate(
+                      angle: kawaiiDecoTilt(2),
+                      child: KawaiiCard(
+                        sticker: false,
+                        color: Kawaii.mintSubtle,
+                        padding: const EdgeInsets.all(10),
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const KawaiiIcon(
+                                  icon: Icons.calendar_month_rounded,
+                                  bg: Colors.white,
+                                  size: 36,
+                                  iconSize: 20),
+                              const SizedBox(height: 8),
+                              const Text('Date plans',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                      fontFamily: Kawaii.displayFamily,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 13,
+                                      color: Kawaii.ink)),
+                              Text('never forget',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                      fontFamily: Kawaii.displayFamily,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color:
+                                          Kawaii.ink.withValues(alpha: 0.7))),
+                            ]),
+                      ),
                     ),
                   ),
                 ],
@@ -230,6 +263,8 @@ class _GetStartedPageState extends State<GetStartedPage> {
                     builder: (_) => const LoginRegisterPage(loginFirst: true))),
               ),
               const SizedBox(height: 14),
+              const KawaiiDotDivider(count: 10),
+              const SizedBox(height: 10),
               Center(
                 child: Text(
                   'Private by design • Only you two can peek',

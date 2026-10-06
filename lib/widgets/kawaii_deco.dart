@@ -240,3 +240,83 @@ Color kawaiiDecoPick(int i) {
 /// Deterministic doodle rotation so grids feel hand-placed.
 double kawaiiDecoTilt(int i) =>
     [0.0, 0.12, -0.12, 0.08, -0.08][i % 5] + (math.pi / 180) * (i % 3);
+
+/// Bold tab header row: sticker pill + trailing doodles.
+/// One line, used at the top of every tab for a consistent voice.
+class KawaiiTabHeaderRow extends StatelessWidget {
+  final String pill;
+  final IconData pillIcon;
+  final Color pillColor;
+  const KawaiiTabHeaderRow({
+    super.key,
+    required this.pill,
+    required this.pillIcon,
+    this.pillColor = Kawaii.sunnySubtle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: pillColor,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+                color: Kawaii.edgeOf(context), width: Kawaii.paperBorderW),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(pillIcon, size: 14, color: Kawaii.onFill(pillColor)),
+            const SizedBox(width: 5),
+            Text(pill,
+                style: TextStyle(
+                    fontFamily: Kawaii.displayFamily,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                    color: Kawaii.onFill(pillColor))),
+          ]),
+        ),
+        const Spacer(),
+        const KawaiiDoodles(),
+      ],
+    );
+  }
+}
+
+/// App mascot in a sticker frame. Falls back to a heart tile when the
+/// bundled icon asset is missing (tests, old builds).
+class KawaiiAppMascot extends StatelessWidget {
+  final double size;
+  const KawaiiAppMascot({super.key, this.size = 64});
+
+  @override
+  Widget build(BuildContext context) {
+    final edge = Kawaii.edgeOf(context);
+    return ExcludeSemantics(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(size * 0.28),
+          border: Border.all(color: edge, width: 2.5),
+          boxShadow: [BoxShadow(color: edge, offset: const Offset(3, 3))],
+        ),
+        clipBehavior: Clip.antiAlias,
+        alignment: Alignment.center,
+        child: Image.asset(
+          'assets/images/ourspace-icon.png',
+          width: size * 0.86,
+          height: size * 0.86,
+          fit: BoxFit.contain,
+          errorBuilder: (_, _, _) => const Icon(
+            Icons.favorite_rounded,
+            size: 30,
+            color: Kawaii.bubble,
+          ),
+        ),
+      ),
+    );
+  }
+}

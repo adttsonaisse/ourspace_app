@@ -121,9 +121,22 @@ class _GalleriesTabState extends State<GalleriesTab> {
               }
               final all = snap.data ?? [];
               if (all.isEmpty) {
-                return const KawaiiEmpty(
-                  title: 'Start the first pile',
-                  message: 'Name it, add the moments. Tap + below.',
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const KawaiiTabHeaderRow(
+                      pill: 'sticker pile',
+                      pillIcon: Icons.photo_library_rounded,
+                      pillColor: Kawaii.sunnySubtle,
+                    ),
+                    const SizedBox(height: 12),
+                    const KawaiiEmpty(
+                      title: 'Start the first pile',
+                      message: 'Name it, add the moments. Tap + below.',
+                      stickerIcon: Icons.photo_library_rounded,
+                      stickerBg: Kawaii.sky,
+                    ),
+                  ],
                 );
               }
               return FutureBuilder<_PilesData>(
@@ -142,27 +155,29 @@ class _GalleriesTabState extends State<GalleriesTab> {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const Row(children: [
-                        KawaiiPill(
-                            label: 'sticker pile',
-                            color: Kawaii.sunnySubtle,
-                            icon: Icons.photo_library_rounded),
-                        Spacer(),
-                        KawaiiDoodles(),
-                      ]),
+                      const KawaiiTabHeaderRow(
+                        pill: 'sticker pile',
+                        pillIcon: Icons.photo_library_rounded,
+                        pillColor: Kawaii.sunnySubtle,
+                      ),
                       const SizedBox(height: 12),
                       Row(children: [
                         KawaiiPill(
                             label:
                                 '${data.piles.length} piles • ${data.picCount} pics',
                             color: Kawaii.sunnySubtle),
+                        const Spacer(),
+                        const KawaiiSparkle(size: 18),
                       ]),
+                      const SizedBox(height: 4),
+                      const KawaiiDotDivider(count: 10),
                       const SizedBox(height: 12),
                       _featuredCard(featured,
                           data.photos[featured.id] ?? []),
                       if (rest.isNotEmpty) ...[
                         const SizedBox(height: 16),
-                        const KawaiiSectionTitle('All piles'),
+                        const KawaiiSectionTitle('All piles',
+                            trailing: KawaiiDoodles()),
                         GridView.builder(
                           shrinkWrap: true,
                           physics:
@@ -175,7 +190,7 @@ class _GalleriesTabState extends State<GalleriesTab> {
                                   childAspectRatio: 0.72),
                           itemCount: rest.length,
                           itemBuilder: (_, i) => _albumCard(
-                              rest[i], data.photos[rest[i].id] ?? []),
+                              rest[i], data.photos[rest[i].id] ?? [], i),
                         ),
                       ],
                     ],
@@ -192,25 +207,36 @@ class _GalleriesTabState extends State<GalleriesTab> {
   Widget _featuredCard(Pile p, List<PilePhoto> shots) {
     return KawaiiCard(
       color: Kawaii.peach,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            const KawaiiPill(
-                label: 'featured pile',
-                color: Kawaii.sunny,
-                icon: Icons.auto_awesome_rounded),
-            const Spacer(),
-            KawaiiIconButton(
-              icon: Icons.delete_outline_rounded,
-              label: 'Delete pile',
-              fill: Colors.white,
-              size: 40,
-              onTap: () => _removePile(p, shots),
-            ),
-          ]),
-          const SizedBox(height: 12),
+      padding: EdgeInsets.zero,
+      child: KawaiiPolkaBg(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                const KawaiiPill(
+                    label: 'featured pile',
+                    color: Kawaii.sunny,
+                    icon: Icons.auto_awesome_rounded),
+                const Spacer(),
+                const KawaiiSparkle(size: 20, color: Colors.white),
+                KawaiiIconButton(
+                  icon: Icons.delete_outline_rounded,
+                  label: 'Delete pile',
+                  fill: Colors.white,
+                  size: 40,
+                  onTap: () => _removePile(p, shots),
+                ),
+              ]),
+              const SizedBox(height: 8),
+              const Row(
+                children: [
+                  KawaiiDoodles(),
+                  Spacer(),
+                ],
+              ),
+              const SizedBox(height: 12),
           if (shots.isEmpty)
             AspectRatio(
               aspectRatio: 1,
@@ -274,7 +300,9 @@ class _GalleriesTabState extends State<GalleriesTab> {
                   color: Kawaii.ink.withValues(alpha: 0.7),
                   fontWeight: FontWeight.w600,
                   fontSize: 13)),
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -322,7 +350,7 @@ class _GalleriesTabState extends State<GalleriesTab> {
     );
   }
 
-  Widget _albumCard(Pile p, List<PilePhoto> shots) {
+  Widget _albumCard(Pile p, List<PilePhoto> shots, int index) {
     return GestureDetector(
       onLongPress: () => _removePile(p, shots),
       child: KawaiiCard(
@@ -332,28 +360,52 @@ class _GalleriesTabState extends State<GalleriesTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            AspectRatio(
-              aspectRatio: 1,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Kawaii.sky.withValues(alpha: 0.25),
-                  borderRadius: BorderRadius.circular(14),
-                  border:
-                      Border.all(color: Kawaii.edgeOf(context), width: Kawaii.paperBorderW),
-                ),
-                clipBehavior: Clip.antiAlias,
-                alignment: Alignment.center,
-                child: shots.isEmpty
-                    ? Icon(Icons.photo_library_rounded,
-                        size: 36, color: Kawaii.textOf(context))
-                    : SizedBox.expand(
-                        child: _PhotoImage(
-                            store: widget.photoStore,
-                            r2Key: shots.first.r2Key),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Transform.rotate(
+                  angle: kawaiiDecoTilt(index),
+                  child: AspectRatio(
+                    aspectRatio: 1,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: kawaiiDecoPick(index).withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                            color: Kawaii.edgeOf(context),
+                            width: Kawaii.paperBorderW),
                       ),
-              ),
+                      clipBehavior: Clip.antiAlias,
+                      alignment: Alignment.center,
+                      child: shots.isEmpty
+                          ? Icon(Icons.photo_library_rounded,
+                              size: 36, color: Kawaii.textOf(context))
+                          : SizedBox.expand(
+                              child: _PhotoImage(
+                                  store: widget.photoStore,
+                                  r2Key: shots.first.r2Key),
+                            ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  bottom: -8,
+                  left: -4,
+                  child: KawaiiPill(
+                    label: '${shots.length}',
+                    color: kawaiiDecoPick(index),
+                    icon: Icons.photo_library_rounded,
+                  ),
+                ),
+                if (index == 0)
+                  const Positioned(
+                    top: -10,
+                    right: -6,
+                    child: KawaiiSparkle(size: 18),
+                  ),
+              ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 10),
             Text(p.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,

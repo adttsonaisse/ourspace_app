@@ -48,15 +48,10 @@ class _DatesTabState extends State<DatesTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Row(
-            children: [
-              KawaiiPill(
-                  label: 'plan cute stuff',
-                  color: Kawaii.sunnySubtle,
-                  icon: Icons.calendar_month_rounded),
-              Spacer(),
-              KawaiiDoodles(),
-            ],
+          const KawaiiTabHeaderRow(
+            pill: 'plan cute stuff',
+            pillIcon: Icons.calendar_month_rounded,
+            pillColor: Kawaii.sunnySubtle,
           ),
           const SizedBox(height: 12),
           StreamBuilder<List<DatePlan>>(
@@ -85,6 +80,8 @@ class _DatesTabState extends State<DatesTab> {
                   actionLabel: 'Plan a date',
                   actionIcon: Icons.calendar_month_rounded,
                   actionColor: KawaiiBtnColor.sunny,
+                  stickerIcon: Icons.calendar_month_rounded,
+                  stickerBg: Kawaii.sunny,
                   onAction: widget.onSchedule,
                 );
               }
@@ -98,37 +95,36 @@ class _DatesTabState extends State<DatesTab> {
                   .toList();
               final past = all.length - upcoming.length;
               final next = upcoming.isEmpty ? null : upcoming.first;
+              final rest = upcoming.skip(next == null ? 0 : 1).toList();
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (next != null) _nextCard(next),
                   const SizedBox(height: 16),
                   KawaiiSectionTitle(
-                    upcoming.length <= 1
-                        ? 'All plans'
-                        : 'More plans',
+                    upcoming.length <= 1 ? 'All plans' : 'More plans',
+                    trailing: const KawaiiDoodles(),
                   ),
-                  ...upcoming
-                      .skip(next == null ? 0 : 1)
-                      .map(_planCard),
+                  for (var i = 0; i < rest.length; i++)
+                    _planCard(rest[i], i),
                   if (past > 0) ...[
                     const SizedBox(height: 8),
                     KawaiiCard(
                       sticker: false,
-                      color: Kawaii.cardOf(context),
+                      color: Kawaii.mintSubtle,
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 12),
                       child: Row(children: [
-                        const KawaiiIcon(
-                            icon: Icons.history_rounded,
-                            bg: Kawaii.sunnySubtle,
-                            size: 40,
-                            iconSize: 20),
-                        const SizedBox(width: 12),
+                        const KawaiiStickerCluster(
+                          main: Icons.history_rounded,
+                          mainBg: Kawaii.sunny,
+                        ),
+                        const SizedBox(width: 4),
                         Expanded(
                             child: Text(
                                 '$past saved memory ${past == 1 ? 'date' : 'dates'}',
                                 style: Theme.of(context).textTheme.bodyMedium)),
+                        const KawaiiDoodles(),
                       ]),
                     ),
                   ],
@@ -148,50 +144,63 @@ class _DatesTabState extends State<DatesTab> {
     ].join(' • ');
     return KawaiiCard(
       color: Kawaii.bubble,
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            KawaiiPill(
-                label: 'Next up • ${dayLabel(p.day)}',
-                color: Colors.white),
-            const Spacer(),
-            const KawaiiIcon(
-                icon: Icons.wb_sunny_rounded,
-                bg: Colors.white,
-                size: 40,
-                iconSize: 22),
-          ]),
-          const SizedBox(height: 10),
-          Text(p.title,
-              style: const TextStyle(
-                  fontFamily: Kawaii.displayFamily,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  color: Kawaii.ink)),
-          if (detail.isNotEmpty) ...[
-            const SizedBox(height: 2),
-            Text(detail,
-                style: const TextStyle(
-                    fontFamily: Kawaii.displayFamily,
-                    color: Kawaii.ink,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600)),
-          ],
-          const SizedBox(height: 14),
-          KawaiiButton(
-            label: 'Plan another',
-            icon: Icons.add_rounded,
-            color: KawaiiBtnColor.white,
-            onTap: widget.onSchedule,
+      padding: EdgeInsets.zero,
+      child: KawaiiPolkaBg(
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                KawaiiPill(
+                    label: 'Next up • ${dayLabel(p.day)}',
+                    color: Colors.white),
+                const Spacer(),
+                KawaiiIcon(
+                    icon: Icons.wb_sunny_rounded,
+                    bg: Colors.white,
+                    size: 40,
+                    iconSize: 22),
+              ]),
+              const SizedBox(height: 10),
+              Text(p.title,
+                  style: const TextStyle(
+                      fontFamily: Kawaii.displayFamily,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: Kawaii.ink)),
+              if (detail.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(detail,
+                    style: const TextStyle(
+                        fontFamily: Kawaii.displayFamily,
+                        color: Kawaii.ink,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600)),
+              ],
+              const SizedBox(height: 12),
+              const Row(
+                children: [
+                  KawaiiDoodles(),
+                  Spacer(),
+                  KawaiiSparkle(size: 20, color: Colors.white),
+                ],
+              ),
+              const SizedBox(height: 12),
+              KawaiiButton(
+                label: 'Plan another',
+                icon: Icons.add_rounded,
+                color: KawaiiBtnColor.white,
+                onTap: widget.onSchedule,
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _planCard(DatePlan p) {
+  Widget _planCard(DatePlan p, int index) {
     final sub = [
       dayLabelYear(p.day),
       if (p.place.isNotEmpty) p.place,
@@ -204,20 +213,35 @@ class _DatesTabState extends State<DatesTab> {
         color: Kawaii.sunnySubtle,
         padding: const EdgeInsets.all(12),
         child: Row(children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-                color: Kawaii.cardOf(context),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: edge, width: Kawaii.paperBorderW)),
-            alignment: Alignment.center,
-            child: Text('${p.day.day}',
-                style: TextStyle(
-                    fontFamily: Kawaii.displayFamily,
-                    color: Kawaii.textOf(context),
-                    fontWeight: FontWeight.w900,
-                    fontSize: 18)),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Transform.rotate(
+                angle: kawaiiDecoTilt(index),
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                      color: Kawaii.cardOf(context),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: edge, width: Kawaii.paperBorderW)),
+                  alignment: Alignment.center,
+                  child: Text('${p.day.day}',
+                      style: TextStyle(
+                          fontFamily: Kawaii.displayFamily,
+                          color: Kawaii.textOf(context),
+                          fontWeight: FontWeight.w900,
+                          fontSize: 18)),
+                ),
+              ),
+              if (index == 0)
+                const Positioned(
+                  top: -8,
+                  right: -8,
+                  child: KawaiiSparkle(size: 16),
+                ),
+            ],
           ),
           const SizedBox(width: 12),
           Expanded(

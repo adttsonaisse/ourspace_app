@@ -70,20 +70,18 @@ class _NotesTabState extends State<NotesTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Row(
-            children: [
-              KawaiiDoodles(),
-              Spacer(),
-              KawaiiSparkle(size: 18),
-            ],
+          const KawaiiTabHeaderRow(
+            pill: 'daily drops',
+            pillIcon: Icons.edit_note_rounded,
+            pillColor: Kawaii.blushSubtle,
           ),
           const SizedBox(height: 10),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(children: [
-              _chip('All', 0),
-              _chip('Pinned', 1),
-              _chip('Mine', 2),
+              _chip('All', 0, Icons.auto_awesome_rounded),
+              _chip('Pinned', 1, Icons.push_pin_rounded),
+              _chip('Mine', 2, Icons.person_rounded),
             ]),
           ),
           const SizedBox(height: 14),
@@ -110,6 +108,8 @@ class _NotesTabState extends State<NotesTab> {
                 return const KawaiiEmpty(
                   title: 'No notes yet',
                   message: 'Tap + below to drop the first one for you two.',
+                  stickerIcon: Icons.mail_rounded,
+                  stickerBg: Kawaii.peach,
                 );
               }
               final vis = _visible(all);
@@ -118,15 +118,18 @@ class _NotesTabState extends State<NotesTab> {
                   title: 'No notes for this filter',
                   message:
                       'Try another filter above, or tap + below to drop a fresh note.',
+                  stickerIcon: Icons.search_rounded,
+                  stickerBg: Kawaii.sky,
                 );
               }
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  ...vis.map((n) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _noteCard(n),
-                      )),
+                  for (var i = 0; i < vis.length; i++)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _noteCard(vis[i], i),
+                    ),
                 ],
               );
             },
@@ -136,7 +139,7 @@ class _NotesTabState extends State<NotesTab> {
     );
   }
 
-  Widget _noteCard(Note n) {
+  Widget _noteCard(Note n, int index) {
     final color = Kawaii.notePalette[n.colorIdx % Kawaii.notePalette.length];
     final sub = StringBuffer(dayLabel(n.createdAt));
     if (n.pinned) sub.write(' • pinned');
@@ -148,17 +151,36 @@ class _NotesTabState extends State<NotesTab> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Kawaii.ink, width: Kawaii.paperBorderW),
-              ),
-              alignment: Alignment.center,
-              child: Icon(n.pinned ? Icons.push_pin_rounded : Icons.mail_rounded,
-                  size: 20, color: Kawaii.ink),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Transform.rotate(
+                  angle: kawaiiDecoTilt(index),
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                          color: Kawaii.ink, width: Kawaii.paperBorderW),
+                    ),
+                    alignment: Alignment.center,
+                    child: Icon(
+                        n.pinned
+                            ? Icons.push_pin_rounded
+                            : Icons.mail_rounded,
+                        size: 20,
+                        color: Kawaii.ink),
+                  ),
+                ),
+                if (n.pinned)
+                  const Positioned(
+                    top: -8,
+                    right: -8,
+                    child: KawaiiSparkle(size: 18),
+                  ),
+              ],
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -205,7 +227,7 @@ class _NotesTabState extends State<NotesTab> {
     );
   }
 
-  Widget _chip(String l, int i) {
+  Widget _chip(String l, int i, IconData icon) {
     final active = filter == i;
     const actives = [Kawaii.peach, Kawaii.sky, Kawaii.sunny];
     final edge = Kawaii.edgeOf(context);
@@ -230,12 +252,22 @@ class _NotesTabState extends State<NotesTab> {
                   ? [BoxShadow(color: edge, offset: const Offset(2, 2))]
                   : null,
             ),
-            child: Text(l,
-                style: TextStyle(
-                    fontFamily: Kawaii.displayFamily,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13,
-                    color: active ? Kawaii.ink : Kawaii.textOf(context))),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon,
+                    size: 15,
+                    color: active ? Kawaii.ink : Kawaii.mutedOf(context)),
+                const SizedBox(width: 6),
+                Text(l,
+                    style: TextStyle(
+                        fontFamily: Kawaii.displayFamily,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                        color:
+                            active ? Kawaii.ink : Kawaii.textOf(context))),
+              ],
+            ),
           ),
         ),
       ),

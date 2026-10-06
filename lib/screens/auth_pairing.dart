@@ -10,6 +10,7 @@ import '../data/repos.dart';
 import '../data/space_repo.dart';
 import '../theme/kawaii.dart';
 import '../widgets/kawaii.dart';
+import '../widgets/kawaii_deco.dart';
 import '../shell.dart';
 
 class PairingPage extends StatefulWidget {
@@ -209,6 +210,8 @@ class _PairingPageState extends State<PairingPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            const KawaiiAppMascot(size: 64),
+            const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -218,6 +221,13 @@ class _PairingPageState extends State<PairingPage> {
                 const SizedBox(width: 4),
                 KawaiiAvatar(
                     text: '?', bg: Kawaii.cardOf(context), size: 64),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                KawaiiDoodles(),
               ],
             ),
             const SizedBox(height: 14),
@@ -381,7 +391,7 @@ class _PairingPageState extends State<PairingPage> {
       const SizedBox(height: 8),
       Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 18),
+        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 14),
         decoration: BoxDecoration(
           color: cardBg,
           borderRadius: BorderRadius.circular(20),
@@ -389,6 +399,13 @@ class _PairingPageState extends State<PairingPage> {
               color: edge, width: Kawaii.paperBorderW, style: BorderStyle.solid),
         ),
         child: Column(children: [
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              KawaiiDoodles(),
+            ],
+          ),
+          const SizedBox(height: 8),
           Text('YOUR PAIR CODE',
               style: TextStyle(
                   fontFamily: Kawaii.displayFamily,

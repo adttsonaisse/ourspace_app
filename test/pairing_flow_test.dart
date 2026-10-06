@@ -34,6 +34,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     await tester.enterText(find.byType(TextField), '000000');
+    await tester.ensureVisible(find.text('Check code'));
+    await tester.pump(const Duration(milliseconds: 200));
     await tester.tap(find.text('Check code'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -50,6 +52,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     await tester.enterText(find.byType(TextField), '482916');
+    await tester.ensureVisible(find.text('Check code'));
+    await tester.pump(const Duration(milliseconds: 200));
     await tester.tap(find.text('Check code'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));

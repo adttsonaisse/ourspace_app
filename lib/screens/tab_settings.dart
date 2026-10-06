@@ -423,63 +423,86 @@ class _SettingsTabState extends State<SettingsTab> {
           KawaiiCard(
             sticker: false,
             color: Kawaii.pinkSubtle,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(children: [
-                  const KawaiiIcon(
-                      icon: Icons.heart_broken_rounded,
-                      bg: Kawaii.bubble,
-                      size: 44,
-                      iconSize: 22,
-                      outlined: true),
-                  const SizedBox(width: 12),
-                  Expanded(
-                      child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
-                        Text('Need space?',
-                            style: TextStyle(
-                                fontFamily: Kawaii.displayFamily,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 15,
-                                color: Kawaii.ink)),
-                        Text('Log out or leave this device.',
-                            style: TextStyle(
-                                fontFamily: Kawaii.displayFamily,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Kawaii.ink)),
-                      ])),
-                ]),
-                const SizedBox(height: 14),
-                KawaiiButton(
-                  label: _leaving ? 'Leaving…' : 'Log out',
-                  icon: Icons.logout_rounded,
-                  color: KawaiiBtnColor.white,
-                  expanded: false,
-                  onTap: _leaving ? null : _logout,
+            padding: EdgeInsets.zero,
+            child: KawaiiPolkaBg(
+              dot: Kawaii.bubble,
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(children: [
+                      const KawaiiStickerCluster(
+                        main: Icons.heart_broken_rounded,
+                        mainBg: Kawaii.bubble,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: const [
+                            Text('Need space?',
+                                style: TextStyle(
+                                    fontFamily: Kawaii.displayFamily,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 15,
+                                    color: Kawaii.ink)),
+                            Text('Log out or leave this device.',
+                                style: TextStyle(
+                                    fontFamily: Kawaii.displayFamily,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Kawaii.ink)),
+                          ])),
+                      const KawaiiSparkle(size: 18),
+                    ]),
+                    const SizedBox(height: 8),
+                    const Row(
+                      children: [
+                        KawaiiDoodles(),
+                        Spacer(),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    KawaiiButton(
+                      label: _leaving ? 'Leaving…' : 'Log out',
+                      icon: Icons.logout_rounded,
+                      color: KawaiiBtnColor.white,
+                      expanded: false,
+                      onTap: _leaving ? null : _logout,
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
           const SizedBox(height: 16),
+          const KawaiiDotDivider(count: 10),
+          const SizedBox(height: 12),
           Center(
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Text('made with ',
-                style: TextStyle(
-                    fontFamily: Kawaii.displayFamily,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Kawaii.mutedOf(context))),
-            const Icon(Icons.favorite_rounded, size: 14, color: Kawaii.bubble),
-            Text(' in ourspace',
-                style: TextStyle(
-                    fontFamily: Kawaii.displayFamily,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Kawaii.mutedOf(context))),
-          ])),
+              child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              KawaiiAppMascot(size: 56),
+              SizedBox(height: 8),
+              Row(mainAxisSize: MainAxisSize.min, children: [
+                Text('made with ',
+                    style: TextStyle(
+                        fontFamily: Kawaii.displayFamily,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Kawaii.mutedOf(context))),
+                Icon(Icons.favorite_rounded,
+                    size: 14, color: Kawaii.bubble),
+                Text(' in ourspace',
+                    style: TextStyle(
+                        fontFamily: Kawaii.displayFamily,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Kawaii.mutedOf(context))),
+              ]),
+            ],
+          )),
         ],
       ),
     );
@@ -588,39 +611,42 @@ class _SettingsTabState extends State<SettingsTab> {
     final spaceId = widget.space?.id;
     if (spaceId == null) return const SizedBox.shrink();
     Widget tile(
-        String label, IconData icon, Color bg, Stream<int> count) {
+        String label, IconData icon, Color bg, Stream<int> count, int i) {
       return Expanded(
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: Kawaii.cardOf(context),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-                color: Kawaii.edgeOf(context),
-                width: Kawaii.paperBorderW),
-          ),
-          child: Column(
-            children: [
-              KawaiiIcon(icon: icon, bg: bg, size: 36, iconSize: 18),
-              const SizedBox(height: 6),
-              StreamBuilder<int>(
-                stream: count,
-                builder: (context, snap) => Text(
-                  '${snap.data ?? 0}',
-                  style: const TextStyle(
-                    fontFamily: Kawaii.displayFamily,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 16,
+        child: Transform.rotate(
+          angle: kawaiiDecoTilt(i),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: bg.withValues(alpha: 0.35),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                  color: Kawaii.edgeOf(context),
+                  width: Kawaii.paperBorderW),
+            ),
+            child: Column(
+              children: [
+                KawaiiIcon(icon: icon, bg: bg, size: 40, iconSize: 20),
+                const SizedBox(height: 6),
+                StreamBuilder<int>(
+                  stream: count,
+                  builder: (context, snap) => Text(
+                    '${snap.data ?? 0}',
+                    style: const TextStyle(
+                      fontFamily: Kawaii.displayFamily,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
-              ),
-              Text(label,
-                  style: TextStyle(
-                      fontFamily: Kawaii.displayFamily,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: Kawaii.mutedOf(context))),
-            ],
+                Text(label,
+                    style: TextStyle(
+                        fontFamily: Kawaii.displayFamily,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Kawaii.mutedOf(context))),
+              ],
+            ),
           ),
         ),
       );
@@ -661,12 +687,13 @@ class _SettingsTabState extends State<SettingsTab> {
 
     return Row(
       children: [
-        tile('notes', Icons.edit_note_rounded, Kawaii.peach, notesCount()),
+        tile('notes', Icons.edit_note_rounded, Kawaii.peach, notesCount(), 0),
         const SizedBox(width: 10),
         tile('dates', Icons.calendar_month_rounded, Kawaii.sunny,
-            datesCount()),
+            datesCount(), 1),
         const SizedBox(width: 10),
-        tile('piles', Icons.photo_library_rounded, Kawaii.sky, pilesCount()),
+        tile(
+            'piles', Icons.photo_library_rounded, Kawaii.sky, pilesCount(), 2),
       ],
     );
   }

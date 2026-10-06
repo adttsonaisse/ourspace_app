@@ -6,6 +6,7 @@ import '../data/backend_errors.dart';
 import '../data/composer.dart';
 import '../theme/kawaii.dart';
 import 'kawaii.dart';
+import 'kawaii_deco.dart';
 
 enum CreateKind { note, pile, date }
 
@@ -300,7 +301,15 @@ class _ComposerSheetState extends State<_ComposerSheet> {
                           style: Theme.of(context).textTheme.bodySmall),
                     ]),
               ),
+              const KawaiiSparkle(size: 20),
             ]),
+            const SizedBox(height: 8),
+            const Row(
+              children: [
+                KawaiiDoodles(),
+                Spacer(),
+              ],
+            ),
             const SizedBox(height: 16),
             ..._fields(),
             const SizedBox(height: 16),

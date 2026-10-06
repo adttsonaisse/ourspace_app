@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/kawaii.dart';
+import 'kawaii_deco.dart';
 
 enum KawaiiBtnColor { peach, sky, sunny, pink, mint, white }
 
@@ -305,7 +306,8 @@ class KawaiiAlert extends StatelessWidget {
 }
 
 /// Empty state: says what is missing and offers the one action that
-/// fills it. Paper tier so it never competes with real content.
+/// fills it. Bold sticker-book style: sticker cluster + doodles on top,
+/// paper tier so it never competes with real content.
 class KawaiiEmpty extends StatelessWidget {
   final String title;
   final String message;
@@ -313,6 +315,8 @@ class KawaiiEmpty extends StatelessWidget {
   final IconData? actionIcon;
   final VoidCallback? onAction;
   final KawaiiBtnColor actionColor;
+  final IconData stickerIcon;
+  final Color stickerBg;
   const KawaiiEmpty({
     super.key,
     required this.title,
@@ -321,6 +325,8 @@ class KawaiiEmpty extends StatelessWidget {
     this.actionIcon,
     this.onAction,
     this.actionColor = KawaiiBtnColor.peach,
+    this.stickerIcon = Icons.auto_awesome_rounded,
+    this.stickerBg = Kawaii.sunny,
   });
 
   @override
@@ -332,6 +338,14 @@ class KawaiiEmpty extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              KawaiiStickerCluster(main: stickerIcon, mainBg: stickerBg),
+              const Spacer(),
+              const KawaiiDoodles(),
+            ],
+          ),
+          const SizedBox(height: 12),
           Text(title, style: tt.titleMedium),
           const SizedBox(height: 4),
           Text(message, style: tt.bodyMedium),
@@ -688,6 +702,14 @@ Future<bool> confirmKawaii(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            const Row(
+              children: [
+                KawaiiDoodles(),
+                Spacer(),
+                KawaiiSparkle(size: 18),
+              ],
+            ),
+            const SizedBox(height: 10),
             Text(title, style: Theme.of(d).textTheme.titleLarge),
             const SizedBox(height: 6),
             Text(message, style: Theme.of(d).textTheme.bodyMedium),
