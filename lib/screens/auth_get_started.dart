@@ -97,7 +97,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      'Notes, galleries, dates & tiny rituals — pasted together like a stationery shop scrapbook.',
+                      'Notes, galleries & dates — pasted together like a stationery shop scrapbook.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                           fontFamily: Kawaii.displayFamily,

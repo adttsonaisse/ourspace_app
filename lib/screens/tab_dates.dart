@@ -5,6 +5,7 @@ import '../data/models/content.dart';
 import '../data/repos.dart';
 import '../theme/kawaii.dart';
 import '../widgets/kawaii.dart';
+import '../widgets/kawaii_deco.dart';
 
 class DatesTab extends StatefulWidget {
   final String spaceId;
@@ -47,6 +48,17 @@ class _DatesTabState extends State<DatesTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          const Row(
+            children: [
+              KawaiiPill(
+                  label: 'plan cute stuff',
+                  color: Kawaii.sunnySubtle,
+                  icon: Icons.calendar_month_rounded),
+              Spacer(),
+              KawaiiDoodles(),
+            ],
+          ),
+          const SizedBox(height: 12),
           StreamBuilder<List<DatePlan>>(
             stream: widget.datesRepo.watch(widget.spaceId),
             builder: (context, snap) {

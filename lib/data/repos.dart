@@ -30,6 +30,7 @@ abstract class SpaceRepo {
   Stream<Space?> watchMySpace();
   Future<void> ensureProfile({String? username});
   Future<List<MemberProfile>> membersWithProfiles(String spaceId);
+  Future<void> updateAnniversary(String spaceId, DateTime date);
 }
 
 abstract class NotesRepo {
@@ -66,16 +67,5 @@ abstract class DatesRepo {
       required String note,
       required String place,
       required DateTime day});
-  Future<void> remove(String id);
-}
-
-abstract class RitualsRepo {
-  Future<List<Ritual>> list(String spaceId);
-  Stream<List<Ritual>> watch(String spaceId);
-  Future<Ritual> create(
-      {required String spaceId,
-      required String title,
-      required int colorIdx});
-  Future<void> toggle(String id, bool done);
   Future<void> remove(String id);
 }

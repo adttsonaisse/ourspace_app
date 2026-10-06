@@ -5,6 +5,7 @@ import '../data/models/content.dart';
 import '../data/repos.dart';
 import '../theme/kawaii.dart';
 import '../widgets/kawaii.dart';
+import '../widgets/kawaii_deco.dart';
 
 class NotesTab extends StatefulWidget {
   final String spaceId;
@@ -69,6 +70,14 @@ class _NotesTabState extends State<NotesTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          const Row(
+            children: [
+              KawaiiDoodles(),
+              Spacer(),
+              KawaiiSparkle(size: 18),
+            ],
+          ),
+          const SizedBox(height: 10),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(children: [

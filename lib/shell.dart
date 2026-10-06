@@ -55,7 +55,6 @@ class _AppShellState extends State<AppShell> {
   AuthRepo get _auth => _backend.auth;
   NotesRepo get _notes => _active.notes;
   DatesRepo get _dates => _active.dates;
-  RitualsRepo get _rituals => _active.rituals;
   PilesRepo get _piles => _active.piles;
   PhotoStore get _photos => _active.photos;
 
@@ -186,6 +185,27 @@ class _AppShellState extends State<AppShell> {
   void _scheduleDate() =>
       showCreateSheet(context, CreateKind.date, _deps());
 
+  void _createKind(CreateKind kind) =>
+      showCreateSheet(context, kind, _deps());
+
+  Future<void> _reloadSpace() async {
+    try {
+      _space = await _spaces.mySpace();
+    } catch (_) {
+      _space = null;
+    }
+    if (_space != null) {
+      try {
+        _members = await _spaces.membersWithProfiles(_space!.id);
+        final me = _members.where((m) => m.userId == _uid);
+        if (me.isNotEmpty && me.first.username.trim().isNotEmpty) {
+          _myUsername = me.first.username;
+        }
+      } catch (_) {}
+    }
+    if (mounted) setState(() => _tick++);
+  }
+
   /// Contextual FAB target: only notes / piles / dates have one.
   /// Returns null on home + you so no FAB is built there.
   CreateKind? get _fabKind => switch (idx) {
@@ -283,10 +303,14 @@ class _AppShellState extends State<AppShell> {
                     HomeTab(
                         key: ValueKey('home-$_tick'),
                         space: _space,
+                        members: _members,
+                        myUid: _uid,
                         notesRepo: _notes,
                         datesRepo: _dates,
-                        ritualsRepo: _rituals,
-                        onJump: _jump),
+                        pilesRepo: _piles,
+                        photoStore: _photos,
+                        onJump: _jump,
+                        onCreate: _createKind),
                     NotesTab(
                         key: ValueKey('notes-$_tick'),
                         spaceId: _spaceId,
@@ -309,7 +333,8 @@ class _AppShellState extends State<AppShell> {
                       space: _space,
                       notesRepo: _notes,
                       datesRepo: _dates,
-                      ritualsRepo: _rituals,
+                      pilesRepo: _piles,
+                      onSpaceChanged: _reloadSpace,
                     ),
                   ]),
                 if (fabKind != null)

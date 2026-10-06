@@ -90,6 +90,14 @@ class SupabaseSpaceRepo implements SpaceRepo {
       });
 
   @override
+  Future<void> updateAnniversary(String spaceId, DateTime date) =>
+      guard(() async {
+        final day =
+            DateTime(date.year, date.month, date.day).toIso8601String().substring(0, 10);
+        await _c.from('spaces').update({'anniversary_date': day}).eq('id', spaceId);
+      });
+
+  @override
   Stream<Space?> watchMySpace() =>
       _c.auth.onAuthStateChange.asyncMap((_) => mySpace());
 
@@ -200,6 +208,23 @@ class DemoSpaceRepo implements SpaceRepo {
       _space = null;
       _ctrl.add(null);
     }
+  }
+
+  @override
+  Future<void> updateAnniversary(String spaceId, DateTime date) async {
+    final cur = _space;
+    if (cur == null || cur.id != spaceId) {
+      throw StateError('Pair first — then set your anniversary');
+    }
+    final day = DateTime(date.year, date.month, date.day);
+    _space = Space(
+      id: cur.id,
+      name: cur.name,
+      createdBy: cur.createdBy,
+      createdAt: cur.createdAt,
+      anniversaryDate: day,
+    );
+    _ctrl.add(_space);
   }
 
   @override

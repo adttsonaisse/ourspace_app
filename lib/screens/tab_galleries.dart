@@ -7,6 +7,7 @@ import '../data/photo_store.dart';
 import '../data/repos.dart';
 import '../theme/kawaii.dart';
 import '../widgets/kawaii.dart';
+import '../widgets/kawaii_deco.dart';
 
 /// Photo piles with real R2/memory thumbnails, counts, and deletes.
 class GalleriesTab extends StatefulWidget {
@@ -141,6 +142,15 @@ class _GalleriesTabState extends State<GalleriesTab> {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      const Row(children: [
+                        KawaiiPill(
+                            label: 'sticker pile',
+                            color: Kawaii.sunnySubtle,
+                            icon: Icons.photo_library_rounded),
+                        Spacer(),
+                        KawaiiDoodles(),
+                      ]),
+                      const SizedBox(height: 12),
                       Row(children: [
                         KawaiiPill(
                             label:

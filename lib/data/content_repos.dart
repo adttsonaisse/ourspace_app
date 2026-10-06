@@ -223,121 +223,6 @@ class MemoryDatesRepo implements DatesRepo {
   Future<void> remove(String id) async => _table.removeById(id);
 }
 
-// ---------------- rituals ----------------
-
-class SupabaseRitualsRepo implements RitualsRepo {
-  SupabaseClient get _c => Supa.client;
-
-  @override
-  Future<List<Ritual>> list(String spaceId) => guard(() async {
-        final rows = await _c
-            .from('rituals')
-            .select()
-            .eq('space_id', spaceId)
-            .order('sort');
-        return parseRows(rows, Ritual.fromJson);
-      });
-
-  @override
-  Stream<List<Ritual>> watch(String spaceId) {
-    return watchRows(
-      _c
-          .from('rituals')
-          .stream(primaryKey: ['id'])
-          .eq('space_id', spaceId)
-          .order('sort'),
-      Ritual.fromJson,
-    );
-  }
-
-  @override
-  Future<Ritual> create(
-      {required String spaceId,
-      required String title,
-      required int colorIdx}) =>
-      guard(() async {
-        final existing = await list(spaceId);
-        final row = await _c
-            .from('rituals')
-            .insert({
-              'space_id': spaceId,
-              'title': title,
-              'color_idx': colorIdx,
-              'sort': existing.length,
-            })
-            .select()
-            .single();
-        return Ritual.fromJson(Map<String, dynamic>.from(row as Map));
-      });
-
-  @override
-  Future<void> toggle(String id, bool done) => guard(() async {
-        await _c.from('rituals').update(
-            {'done': done, 'updated_at': DateTime.now().toIso8601String()}).eq(
-            'id', id);
-      });
-
-  @override
-  Future<void> remove(String id) => guard(() async {
-        await _c.from('rituals').delete().eq('id', id);
-      });
-}
-
-class MemoryRitualsRepo implements RitualsRepo {
-  final _table = MemoryTable<Ritual>(
-    idOf: (r) => r.id,
-    spaceOf: (r) => r.spaceId,
-    sortBy: (a, b) => a.sort.compareTo(b.sort),
-  );
-  int _seq = 0;
-
-  void seed(String spaceId, List<Ritual> rituals) =>
-      _table.seed(spaceId, rituals);
-
-  @override
-  Future<List<Ritual>> list(String spaceId) => _table.list(spaceId);
-
-  @override
-  Stream<List<Ritual>> watch(String spaceId) => _table.watch(spaceId);
-
-  @override
-  Future<Ritual> create(
-      {required String spaceId,
-      required String title,
-      required int colorIdx}) async {
-    final l = await _table.list(spaceId);
-    final r = Ritual(
-      id: 'm${_seq++}',
-      spaceId: spaceId,
-      title: title,
-      colorIdx: colorIdx,
-      done: false,
-      sort: l.length,
-      updatedAt: DateTime.now(),
-    );
-    _table.put(r);
-    return r;
-  }
-
-  @override
-  Future<void> toggle(String id, bool done) async {
-    _table.updateFirst(
-      (r) => r.id == id,
-      (o) => Ritual(
-          id: o.id,
-          spaceId: o.spaceId,
-          title: o.title,
-          colorIdx: o.colorIdx,
-          done: done,
-          sort: o.sort,
-          updatedAt: DateTime.now()),
-    );
-  }
-
-  @override
-  Future<void> remove(String id) async => _table.removeById(id);
-}
-
 // ---------------- piles (rows in M4, photos in M5) ----------------
 
 class SupabasePilesRepo implements PilesRepo {
@@ -502,6 +387,6 @@ class MemoryPilesRepo implements PilesRepo {
 
 // ---------------- resolvers ----------------
 // Moved to backend.dart: resolveAuthRepo/resolveSpaceRepo/
-// resolveNotesRepo/resolveDatesRepo/resolveRitualsRepo/resolvePilesRepo
+// resolveNotesRepo/resolveDatesRepo/resolvePilesRepo
 // delegate to the shared Backend singleton. Kept importable from here
 // via backend.dart — do not re-add them (circular import).

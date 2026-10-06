@@ -13,6 +13,7 @@ import '../theme/kawaii.dart';
 import '../theme/prefs.dart';
 import '../widgets/app_update_dialog.dart';
 import '../widgets/kawaii.dart';
+import '../widgets/kawaii_deco.dart';
 import 'auth_gate.dart';
 import 'auth_pairing.dart';
 
@@ -22,7 +23,8 @@ class SettingsTab extends StatefulWidget {
   final Space? space;
   final NotesRepo? notesRepo;
   final DatesRepo? datesRepo;
-  final RitualsRepo? ritualsRepo;
+  final PilesRepo? pilesRepo;
+  final VoidCallback? onSpaceChanged;
   const SettingsTab(
       {super.key,
       this.auth,
@@ -30,7 +32,8 @@ class SettingsTab extends StatefulWidget {
       this.space,
       this.notesRepo,
       this.datesRepo,
-      this.ritualsRepo});
+      this.pilesRepo,
+      this.onSpaceChanged});
   @override
   State<SettingsTab> createState() => _SettingsTabState();
 }
@@ -40,6 +43,7 @@ class _SettingsTabState extends State<SettingsTab> {
   bool _leaving = false;
   bool _exporting = false;
   bool _savingProfile = false;
+  bool _savingAnniversary = false;
   bool _checkingUpdate = false;
   String? _version;
   late final AuthRepo _auth;
@@ -77,6 +81,8 @@ class _SettingsTabState extends State<SettingsTab> {
     if (others.isEmpty) return null;
     return '$_myName & ${others.first.username}';
   }
+
+  DateTime? get _anniversary => widget.space?.effectiveAnniversary;
 
   @override
   void initState() {
@@ -195,8 +201,8 @@ class _SettingsTabState extends State<SettingsTab> {
     final space = widget.space;
     final notes = widget.notesRepo;
     final dates = widget.datesRepo;
-    final rituals = widget.ritualsRepo;
-    if (space == null || notes == null || dates == null || rituals == null) {
+    final piles = widget.pilesRepo;
+    if (space == null || notes == null || dates == null || piles == null) {
       showKawaiiToast(context, 'Pair first — then export your space',
           kind: KawaiiAlertKind.info);
       return;
@@ -206,8 +212,9 @@ class _SettingsTabState extends State<SettingsTab> {
     try {
       final ns = await notes.list(space.id);
       final ds = await dates.list(space.id);
-      final rs = await rituals.list(space.id);
+      final ps = await piles.list(space.id);
       final buf = StringBuffer('${space.name} — ourspace export\n');
+      buf.writeln('Anniversary: ${dayLabelYear(space.effectiveAnniversary)}');
       buf.writeln('\nNotes (${ns.length}):');
       for (final n in ns) {
         buf.writeln('- ${n.body}');
@@ -216,9 +223,9 @@ class _SettingsTabState extends State<SettingsTab> {
       for (final d in ds) {
         buf.writeln('- ${d.title} (${dayLabelYear(d.day)})');
       }
-      buf.writeln('\nRituals (${rs.length}):');
-      for (final r in rs) {
-        buf.writeln('- ${r.done ? '[x]' : '[ ]'} ${r.title}');
+      buf.writeln('\nPiles (${ps.length}):');
+      for (final p in ps) {
+        buf.writeln('- ${p.title}');
       }
       await SharePlus.instance
           .share(ShareParams(text: buf.toString()));
@@ -228,6 +235,33 @@ class _SettingsTabState extends State<SettingsTab> {
           kind: KawaiiAlertKind.danger);
     } finally {
       if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  Future<void> _editAnniversary() async {
+    final space = widget.space;
+    if (space == null || _savingAnniversary) return;
+    final initial = space.effectiveAnniversary;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _savingAnniversary = true);
+    try {
+      await _spaces.updateAnniversary(space.id, picked);
+      widget.onSpaceChanged?.call();
+      if (!mounted) return;
+      showKawaiiToast(context, 'Anniversary updated to ${dayLabelYear(picked)}',
+          kind: KawaiiAlertKind.success);
+    } catch (e) {
+      if (!mounted) return;
+      showKawaiiToast(context, userMessage(e),
+          kind: KawaiiAlertKind.danger);
+    } finally {
+      if (mounted) setState(() => _savingAnniversary = false);
     }
   }
 
@@ -266,64 +300,16 @@ class _SettingsTabState extends State<SettingsTab> {
 
   @override
   Widget build(BuildContext context) {
-    final space = widget.space;
-    final paired = space != null;
-    final since = space?.createdAt;
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(20, 12, 20, Kawaii.tabBottom(context)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          KawaiiCard(
-            color: Kawaii.sunnySubtle,
-            child: Row(children: [
-              KawaiiAvatar(text: _meInitial, bg: Kawaii.peach, size: 56),
-              const SizedBox(width: 8),
-              KawaiiAvatar(
-                  text: paired ? _secondInitial : '?',
-                  bg: paired ? Kawaii.sky : Colors.white,
-                  size: 56),
-              const SizedBox(width: 14),
-              Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                    Text(space?.name ?? 'Just you for now',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontFamily: Kawaii.displayFamily,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 18,
-                            color: Kawaii.ink)),
-                    Text(
-                        paired
-                            ? 'paired • day ${daysSince(since!) + 1}'
-                            : 'solo • pair to sync',
-                        style: TextStyle(
-                            fontFamily: Kawaii.displayFamily,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: Kawaii.ink.withValues(alpha: 0.8))),
-                    if (_pairNames != null)
-                      Text(_pairNames!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              fontFamily: Kawaii.displayFamily,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Kawaii.ink.withValues(alpha: 0.7))),
-                    const SizedBox(height: 6),
-                    KawaiiPill(
-                        label: paired ? 'paired' : 'solo',
-                        color: Colors.white,
-                        icon: Icons.favorite_rounded),
-                  ])),
-            ]),
-          ),
+          _ourspaceCard(),
+          const SizedBox(height: 12),
+          _statRow(),
           const SizedBox(height: 18),
-          const KawaiiSectionTitle('Settings'),
+          const KawaiiSectionTitle('Settings', trailing: KawaiiDoodles()),
           KawaiiCard(
             color: Kawaii.cardOf(context),
             padding: EdgeInsets.zero,
@@ -343,6 +329,36 @@ class _SettingsTabState extends State<SettingsTab> {
                     ],
                   ),
                   onTap: _savingProfile ? null : _editProfile),
+              _div(),
+              _row(
+                Icons.cake_rounded,
+                _savingAnniversary ? 'Saving date…' : 'Anniversary date',
+                Kawaii.bubble,
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        widget.space == null
+                            ? 'pair first'
+                            : dayLabelYear(widget.space!.effectiveAnniversary),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Icon(Icons.arrow_forward_ios_rounded,
+                        size: 14, color: Kawaii.mutedOf(context)),
+                  ],
+                ),
+                onTap: widget.space == null || _savingAnniversary
+                    ? null
+                    : _editAnniversary,
+              ),
               _div(),
               _row(Icons.notifications_rounded, 'Sweet reminders', Kawaii.peach,
                   trailing: _stickerSwitch(
@@ -466,6 +482,192 @@ class _SettingsTabState extends State<SettingsTab> {
           ])),
         ],
       ),
+    );
+  }
+
+  /// Informative Ourspace card: no edit buttons, read-only pair info.
+  Widget _ourspaceCard() {
+    final space = widget.space;
+    final paired = space != null;
+    final since = _anniversary;
+    final dayText = since == null
+        ? 'solo • pair to sync'
+        : 'paired • day ${daysSince(since) + 1}';
+    final anniText = since == null
+        ? 'no anniversary yet'
+        : dayLabelYear(since);
+    return KawaiiCard(
+      color: Kawaii.sunnySubtle,
+      padding: EdgeInsets.zero,
+      child: KawaiiPolkaBg(
+        dot: Kawaii.sunny,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(children: [
+                KawaiiAvatar(text: _meInitial, bg: Kawaii.peach, size: 56),
+                const SizedBox(width: 8),
+                KawaiiAvatar(
+                    text: paired ? _secondInitial : '?',
+                    bg: paired ? Kawaii.sky : Colors.white,
+                    size: 56),
+                const SizedBox(width: 14),
+                Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                      Text(space?.name ?? 'Just you for now',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontFamily: Kawaii.displayFamily,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 18,
+                              color: Kawaii.ink)),
+                      Text(dayText,
+                          style: TextStyle(
+                              fontFamily: Kawaii.displayFamily,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Kawaii.ink.withValues(alpha: 0.8))),
+                      if (_pairNames != null)
+                        Text(_pairNames!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontFamily: Kawaii.displayFamily,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Kawaii.ink.withValues(alpha: 0.7))),
+                    ])),
+              ]),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                      color: Kawaii.ink, width: Kawaii.paperBorderW),
+                ),
+                child: Row(
+                  children: [
+                    const KawaiiSparkle(size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        paired
+                            ? 'together since $anniText'
+                            : 'pair to start your day count',
+                        style: const TextStyle(
+                          fontFamily: Kawaii.displayFamily,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Kawaii.ink,
+                        ),
+                      ),
+                    ),
+                    KawaiiPill(
+                        label: paired ? 'paired' : 'solo',
+                        color: Kawaii.mint,
+                        icon: Icons.favorite_rounded),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _statRow() {
+    final spaceId = widget.space?.id;
+    if (spaceId == null) return const SizedBox.shrink();
+    Widget tile(
+        String label, IconData icon, Color bg, Stream<int> count) {
+      return Expanded(
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: Kawaii.cardOf(context),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+                color: Kawaii.edgeOf(context),
+                width: Kawaii.paperBorderW),
+          ),
+          child: Column(
+            children: [
+              KawaiiIcon(icon: icon, bg: bg, size: 36, iconSize: 18),
+              const SizedBox(height: 6),
+              StreamBuilder<int>(
+                stream: count,
+                builder: (context, snap) => Text(
+                  '${snap.data ?? 0}',
+                  style: const TextStyle(
+                    fontFamily: Kawaii.displayFamily,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+              Text(label,
+                  style: TextStyle(
+                      fontFamily: Kawaii.displayFamily,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Kawaii.mutedOf(context))),
+            ],
+          ),
+        ),
+      );
+    }
+
+    Stream<int> notesCount() async* {
+      final repo = widget.notesRepo;
+      if (repo == null) {
+        yield 0;
+        return;
+      }
+      await for (final l in repo.watch(spaceId)) {
+        yield l.length;
+      }
+    }
+
+    Stream<int> datesCount() async* {
+      final repo = widget.datesRepo;
+      if (repo == null) {
+        yield 0;
+        return;
+      }
+      await for (final l in repo.watch(spaceId)) {
+        yield l.length;
+      }
+    }
+
+    Stream<int> pilesCount() async* {
+      final repo = widget.pilesRepo;
+      if (repo == null) {
+        yield 0;
+        return;
+      }
+      await for (final l in repo.watch(spaceId)) {
+        yield l.length;
+      }
+    }
+
+    return Row(
+      children: [
+        tile('notes', Icons.edit_note_rounded, Kawaii.peach, notesCount()),
+        const SizedBox(width: 10),
+        tile('dates', Icons.calendar_month_rounded, Kawaii.sunny,
+            datesCount()),
+        const SizedBox(width: 10),
+        tile('piles', Icons.photo_library_rounded, Kawaii.sky, pilesCount()),
+      ],
     );
   }
 

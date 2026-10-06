@@ -1,4 +1,4 @@
-// Cloud-sync content models: notes, piles, photos, dates, rituals.
+// Cloud-sync content models: notes, piles, photos, dates.
 // colorIdx maps to the local Kawaii palette order — never the DB's business.
 
 class Note {
@@ -107,30 +107,3 @@ class DatePlan {
       );
 }
 
-class Ritual {
-  final String id;
-  final String spaceId;
-  final String title;
-  final int colorIdx;
-  final bool done;
-  final int sort;
-  final DateTime updatedAt;
-  const Ritual(
-      {required this.id,
-      required this.spaceId,
-      required this.title,
-      required this.colorIdx,
-      required this.done,
-      required this.sort,
-      required this.updatedAt});
-
-  factory Ritual.fromJson(Map<String, dynamic> j) => Ritual(
-        id: j['id'] as String,
-        spaceId: j['space_id'] as String,
-        title: j['title'] as String,
-        colorIdx: (j['color_idx'] as num).toInt(),
-        done: j['done'] as bool,
-        sort: (j['sort'] as num).toInt(),
-        updatedAt: DateTime.parse(j['updated_at'] as String),
-      );
-}

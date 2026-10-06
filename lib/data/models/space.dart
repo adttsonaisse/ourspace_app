@@ -6,18 +6,26 @@ class Space {
   final String name;
   final String createdBy;
   final DateTime createdAt;
+  final DateTime? anniversaryDate;
   const Space(
       {required this.id,
       required this.name,
       required this.createdBy,
-      required this.createdAt});
+      required this.createdAt,
+      this.anniversaryDate});
 
   factory Space.fromJson(Map<String, dynamic> j) => Space(
         id: j['id'] as String,
         name: j['name'] as String,
         createdBy: j['created_by'] as String,
         createdAt: DateTime.parse(j['created_at'] as String),
+        anniversaryDate: j['anniversary_date'] == null
+            ? null
+            : DateTime.parse(j['anniversary_date'] as String),
       );
+
+  /// Day counter source: editable anniversary when set, else creation day.
+  DateTime get effectiveAnniversary => anniversaryDate ?? createdAt;
 
   Map<String, dynamic> toInsert(String name, String uid) => {
         'name': name,

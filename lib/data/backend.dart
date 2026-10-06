@@ -19,7 +19,6 @@ abstract class Backend {
   SpaceRepo get spaces;
   NotesRepo get notes;
   DatesRepo get dates;
-  RitualsRepo get rituals;
   PilesRepo get piles;
   PhotoStore get photos;
 
@@ -36,7 +35,6 @@ class SupabaseBackend implements Backend {
   final SpaceRepo _spaces = SupabaseSpaceRepo();
   final NotesRepo _notes = SupabaseNotesRepo();
   final DatesRepo _dates = SupabaseDatesRepo();
-  final RitualsRepo _rituals = SupabaseRitualsRepo();
   final PilesRepo _piles = SupabasePilesRepo();
 
   @override
@@ -47,8 +45,6 @@ class SupabaseBackend implements Backend {
   NotesRepo get notes => _notes;
   @override
   DatesRepo get dates => _dates;
-  @override
-  RitualsRepo get rituals => _rituals;
   @override
   PilesRepo get piles => _piles;
 
@@ -69,7 +65,6 @@ class DemoBackend implements Backend {
   final DemoSpaceRepo _spaces = DemoSpaceRepo();
   final MemoryNotesRepo _notes = MemoryNotesRepo();
   final MemoryDatesRepo _dates = MemoryDatesRepo();
-  final MemoryRitualsRepo _rituals = MemoryRitualsRepo();
   final MemoryPilesRepo _piles = MemoryPilesRepo();
   final MemoryPhotoStore _photos = MemoryPhotoStore();
 
@@ -81,8 +76,6 @@ class DemoBackend implements Backend {
   NotesRepo get notes => _notes;
   @override
   DatesRepo get dates => _dates;
-  @override
-  RitualsRepo get rituals => _rituals;
   @override
   PilesRepo get piles => _piles;
   @override
@@ -137,5 +130,4 @@ AuthRepo resolveAuthRepo() => resolveBackend().auth;
 SpaceRepo resolveSpaceRepo() => resolveBackend().spaces;
 NotesRepo resolveNotesRepo() => resolveBackend().notes;
 DatesRepo resolveDatesRepo() => resolveBackend().dates;
-RitualsRepo resolveRitualsRepo() => resolveBackend().rituals;
 PilesRepo resolvePilesRepo() => resolveBackend().piles;

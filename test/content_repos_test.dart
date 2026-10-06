@@ -47,16 +47,6 @@ void main() {
     expect(await repo.list('s'), hasLength(1));
   });
 
-  test('MemoryRitualsRepo toggle keeps order', () async {
-    final repo = MemoryRitualsRepo();
-    final r = await repo.create(
-        spaceId: 's', title: 'Walk', colorIdx: 1);
-    await repo.toggle(r.id, true);
-    final all = await repo.list('s');
-    expect(all.single.done, isTrue);
-    expect(all.single.sort, 0);
-  });
-
   test('MemoryPilesRepo photos attach to pile', () async {
     final repo = MemoryPilesRepo();
     final p = await repo.create(

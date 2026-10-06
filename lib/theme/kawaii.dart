@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 abstract class Kawaii {
-  // Pastels — content + wayfinding only (note/ritual colors, active nav,
+  // Pastels — content + wayfinding only (note colors, active nav,
   // the primary button of a tab). Chrome stays ink on paper.
   static const peach = Color(0xFFF8BE9E);
   static const peachHover = Color(0xFFF5A888);

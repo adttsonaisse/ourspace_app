@@ -1,88 +1,64 @@
 import 'package:flutter/material.dart';
-import '../data/backend_errors.dart';
+
 import '../data/format.dart';
 import '../data/models/content.dart';
 import '../data/models/space.dart';
+import '../data/photo_store.dart';
 import '../data/repos.dart';
 import '../theme/kawaii.dart';
 import '../widgets/kawaii.dart';
+import '../widgets/kawaii_deco.dart';
+import '../widgets/kawaii_fab.dart';
 
-class HomeTab extends StatefulWidget {
+/// v2.0.1 Home: hero pair card + Today in ourspace sections.
+/// Layout follows assets/tmp/wireframe home.png:
+/// hero, 1 large highlight, 2 medium shortcuts, 4 mini quick actions,
+/// 1 full-width CTA pill.
+class HomeTab extends StatelessWidget {
   final Space? space;
+  final List<MemberProfile> members;
+  final String myUid;
   final NotesRepo notesRepo;
-  final RitualsRepo ritualsRepo;
-  final DatesRepo? datesRepo;
+  final DatesRepo datesRepo;
+  final PilesRepo pilesRepo;
+  final PhotoStore photoStore;
   final ValueChanged<int>? onJump;
-  const HomeTab(
-      {super.key,
-      required this.space,
-      required this.notesRepo,
-      required this.ritualsRepo,
-      this.datesRepo,
-      this.onJump});
-  @override
-  State<HomeTab> createState() => _HomeTabState();
-}
+  final ValueChanged<CreateKind>? onCreate;
 
-class _HomeTabState extends State<HomeTab> {
-  final _ritualCtrl = TextEditingController();
-  bool _addingRitual = false;
+  const HomeTab({
+    super.key,
+    required this.space,
+    this.members = const [],
+    this.myUid = kDemoUid,
+    required this.notesRepo,
+    required this.datesRepo,
+    required this.pilesRepo,
+    required this.photoStore,
+    this.onJump,
+    this.onCreate,
+  });
 
-  String get _spaceId => widget.space?.id ?? kDemoSpaceId;
+  String get _spaceId => space?.id ?? kDemoSpaceId;
 
-  @override
-  void dispose() {
-    _ritualCtrl.dispose();
-    super.dispose();
+  String get _meName {
+    final me = members.where((m) => m.userId == myUid);
+    if (me.isNotEmpty && me.first.username.trim().isNotEmpty) {
+      return me.first.username.trim();
+    }
+    return 'You';
   }
 
-  Future<void> _toggle(Ritual r) async {
-    try {
-      await widget.ritualsRepo.toggle(r.id, !r.done);
-    } catch (e) {
-      if (!mounted) return;
-      showKawaiiToast(context, userMessage(e),
-          kind: KawaiiAlertKind.danger);
-    }
+  String? get _partnerName {
+    final others = members.where((m) => m.userId != myUid).toList();
+    if (others.isEmpty) return null;
+    final n = others.first.username.trim();
+    return n.isEmpty ? null : n;
   }
 
-  Future<void> _addRitual() async {
-    final title = _ritualCtrl.text.trim();
-    if (title.isEmpty || _addingRitual) return;
-    setState(() => _addingRitual = true);
-    try {
-      await widget.ritualsRepo.create(
-        spaceId: _spaceId,
-        title: title,
-        colorIdx: DateTime.now().millisecond % Kawaii.notePalette.length,
-      );
-      _ritualCtrl.clear();
-      if (!mounted) return;
-      showKawaiiToast(context, 'Ritual added', kind: KawaiiAlertKind.success);
-    } catch (e) {
-      if (!mounted) return;
-      showKawaiiToast(context, userMessage(e), kind: KawaiiAlertKind.danger);
-    } finally {
-      if (mounted) setState(() => _addingRitual = false);
-    }
-  }
-
-  Future<void> _removeRitual(Ritual r) async {
-    final ok = await confirmKawaii(
-      context,
-      title: 'Remove ritual?',
-      message: '“${r.title}” will be removed from your weekly list.',
-      confirmLabel: 'Remove',
-    );
-    if (!ok) return;
-    try {
-      await widget.ritualsRepo.remove(r.id);
-      if (!mounted) return;
-      showKawaiiToast(context, 'Ritual removed', kind: KawaiiAlertKind.info);
-    } catch (e) {
-      if (!mounted) return;
-      showKawaiiToast(context, userMessage(e), kind: KawaiiAlertKind.danger);
-    }
+  String get _pairTitle {
+    final p = _partnerName;
+    if (p == null) return _meName;
+    return '$_meName & $p';
   }
 
   @override
@@ -92,328 +68,457 @@ class _HomeTabState extends State<HomeTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _heroCard(),
+          _heroCard(context),
           const SizedBox(height: 18),
-          const KawaiiSectionTitle('Today in ourspace'),
-          Row(children: [
-            Expanded(
-              child: KawaiiCard(
-                color: Kawaii.skySubtle,
-                sticker: false,
-                padding: const EdgeInsets.all(14),
-                onTap: widget.onJump == null ? null : () => widget.onJump!(3),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const KawaiiIcon(
-                        icon: Icons.calendar_month_rounded, bg: Kawaii.sky, size: 40, iconSize: 20),
-                    const SizedBox(height: 10),
-                    const Text('Date plans',
-                        style: TextStyle(
-                            fontFamily: Kawaii.displayFamily,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 15,
-                            color: Kawaii.ink)),
-                    const SizedBox(height: 2),
-                    Text('Ideas and upcoming dates',
-                        style: TextStyle(
-                            fontFamily: Kawaii.displayFamily,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Kawaii.ink.withValues(alpha: 0.7))),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: KawaiiCard(
-                color: Kawaii.sunnySubtle,
-                sticker: false,
-                padding: const EdgeInsets.all(14),
-                onTap: widget.onJump == null ? null : () => widget.onJump!(2),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const KawaiiIcon(
-                        icon: Icons.photo_library_rounded,
-                        bg: Kawaii.sunny,
-                        size: 40,
-                        iconSize: 20),
-                    const SizedBox(height: 10),
-                    const Text('Photo piles',
-                        style: TextStyle(
-                            fontFamily: Kawaii.displayFamily,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 15,
-                            color: Kawaii.ink)),
-                    const SizedBox(height: 2),
-                    Text('Shared moments together',
-                        style: TextStyle(
-                            fontFamily: Kawaii.displayFamily,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Kawaii.ink.withValues(alpha: 0.7))),
-                  ],
-                ),
-              ),
-            ),
-          ]),
+          const KawaiiSectionTitle(
+            'Today in ourspace',
+            trailing: KawaiiDoodles(),
+          ),
+          _largeHighlight(context),
+          const SizedBox(height: 12),
+          _mediumRow(context),
+          const SizedBox(height: 14),
+          const KawaiiDotDivider(),
+          const SizedBox(height: 14),
+          _quickActions(context),
           const SizedBox(height: 16),
-          _ritualsCard(),
+          KawaiiButton(
+            label: 'Drop a sweet note',
+            icon: Icons.favorite_rounded,
+            color: KawaiiBtnColor.peach,
+            onTap: onCreate == null ? null : () => onCreate!(CreateKind.note),
+          ),
         ],
       ),
     );
   }
 
-  Widget _heroCard() {
-    final name = widget.space?.name ?? 'Our space';
-    final since = widget.space?.createdAt;
-    final dayPill = since == null
+  Widget _heroCard(BuildContext context) {
+    final anni = space?.effectiveAnniversary;
+    final dayPill = anni == null
         ? 'just us two'
-        : 'day ${daysSince(since) + 1} together';
+        : 'day ${daysSince(anni) + 1} together';
+    final anniLabel =
+        anni == null ? 'set your anniversary in you' : dayLabelYear(anni);
+    final meInitial = avatarInitial(_meName, fallback: 'Y');
+    final partnerInitial = _partnerName == null
+        ? null
+        : avatarInitial(_partnerName, fallback: '?');
     return KawaiiCard(
       color: Kawaii.peach,
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      padding: EdgeInsets.zero,
+      child: KawaiiPolkaBg(
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              KawaiiPill(label: dayPill, color: Colors.white),
-              const Spacer(),
-              StreamBuilder<List<Note>>(
-                stream: widget.notesRepo.watch(_spaceId),
-                builder: (context, snap) {
-                  final n = snap.data?.length ?? 0;
-                  return KawaiiPill(
-                      label: '$n notes',
-                      color: Kawaii.sunny,
-                      icon: Icons.edit_note_rounded);
-                },
+              Row(
+                children: [
+                  KawaiiPill(label: dayPill, color: Colors.white),
+                  const Spacer(),
+                  StreamBuilder<List<Note>>(
+                    stream: notesRepo.watch(_spaceId),
+                    builder: (context, snap) {
+                      final n = snap.data?.length ?? 0;
+                      return KawaiiPill(
+                        label: '$n notes',
+                        color: Kawaii.sunny,
+                        icon: Icons.edit_note_rounded,
+                      );
+                    },
+                  ),
+                ],
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(greeting(),
-              style: const TextStyle(
+              const SizedBox(height: 12),
+              Text(
+                greeting(),
+                style: const TextStyle(
                   fontFamily: Kawaii.displayFamily,
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
-                  color: Kawaii.ink)),
-          Row(children: [
-            Expanded(
-              child: Text(name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w900,
-                      fontFamily: Kawaii.displayFamily,
-                      color: Kawaii.ink)),
-            ),
-            const SizedBox(width: 6),
-            const Icon(Icons.favorite_rounded,
-                size: 26, color: Kawaii.bubble),
-          ]),
-          const SizedBox(height: 12),
-          _latestNote(),
-        ],
+                  color: Kawaii.ink,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Text(
+                      _pairTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        fontFamily: Kawaii.displayFamily,
+                        color: Kawaii.ink,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  KawaiiAvatarPair(
+                    first: meInitial,
+                    second: partnerInitial,
+                    size: 40,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.cake_rounded,
+                      size: 16, color: Kawaii.ink),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      anniLabel,
+                      style: TextStyle(
+                        fontFamily: Kawaii.displayFamily,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Kawaii.ink.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ),
+                  const KawaiiSparkle(size: 18),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _latestNote() {
-    return StreamBuilder<List<Note>>(
-      stream: widget.notesRepo.watch(_spaceId),
-      builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Center(
-                child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2.5))),
-          );
-        }
-        if (snap.hasError || (snap.data ?? []).isEmpty) {
-          return GestureDetector(
-            onTap:
-                widget.onJump == null ? null : () => widget.onJump!(1),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Kawaii.ink, width: Kawaii.paperBorderW),
+  Widget _largeHighlight(BuildContext context) {
+    return StreamBuilder<List<DatePlan>>(
+      stream: datesRepo.watch(_spaceId),
+      builder: (context, dsnap) {
+        final all = dsnap.data ?? [];
+        final now = DateTime.now();
+        final day0 = DateTime(now.year, now.month, now.day);
+        final upcoming = all
+            .where((p) => !DateTime(p.day.year, p.day.month, p.day.day)
+                .isBefore(day0))
+            .toList();
+        final next = upcoming.isEmpty ? null : upcoming.first;
+        if (next != null) return _nextDateCard(context, next);
+        return StreamBuilder<List<Note>>(
+          stream: notesRepo.watch(_spaceId),
+          builder: (context, nsnap) {
+            final notes = nsnap.data ?? [];
+            if (notes.isEmpty) {
+              return KawaiiCard(
+                color: Kawaii.mintSubtle,
+                child: Row(
+                  children: [
+                    const KawaiiStickerCluster(
+                      main: Icons.mail_rounded,
+                      mainBg: Kawaii.mint,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Fresh page, you two',
+                              style: Theme.of(context).textTheme.titleSmall),
+                          const SizedBox(height: 2),
+                          Text('Pin your first note or plan a date.',
+                              style: Theme.of(context).textTheme.bodySmall),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+            final n = notes.first;
+            return KawaiiCard(
+              color: Kawaii.bubble,
+              onTap: onJump == null ? null : () => onJump!(1),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      KawaiiPill(
+                        label: 'latest sweet note',
+                        color: Colors.white,
+                        icon: Icons.mail_rounded,
+                      ),
+                      Spacer(),
+                      KawaiiSparkle(size: 20, color: Colors.white),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    '\u201c${n.body}\u201d',
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontFamily: Kawaii.displayFamily,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Kawaii.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    dayLabel(n.createdAt),
+                    style: TextStyle(
+                      fontFamily: Kawaii.displayFamily,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Kawaii.ink.withValues(alpha: 0.8),
+                    ),
+                  ),
+                ],
               ),
-              child: const Row(children: [
-                KawaiiIcon(
-                    icon: Icons.edit_note_rounded,
-                    bg: Kawaii.peach,
-                    size: 38,
-                    iconSize: 20),
-                SizedBox(width: 10),
-                Expanded(
-                    child: Text('No notes yet — tap + to drop the first one',
-                        style: TextStyle(
-                            fontFamily: Kawaii.displayFamily,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                            color: Kawaii.ink))),
-              ]),
-            ),
-          );
-        }
-        final n = snap.data!.first;
-        return GestureDetector(
-          onTap: widget.onJump == null ? null : () => widget.onJump!(1),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Kawaii.ink, width: Kawaii.paperBorderW),
-            ),
-            child: Row(children: [
-              const KawaiiIcon(
-                  icon: Icons.mail_rounded,
-                  bg: Kawaii.peach,
-                  size: 38,
-                  iconSize: 20),
-              const SizedBox(width: 10),
-              Expanded(
-                  child: Text('“${n.body}” — ${dayLabel(n.createdAt)}',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          fontFamily: Kawaii.displayFamily,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                          color: Kawaii.ink))),
-            ]),
-          ),
+            );
+          },
         );
       },
     );
   }
 
-  Widget _ritualsCard() {
+  Widget _nextDateCard(BuildContext context, DatePlan p) {
+    final detail = [
+      dayLabelYear(p.day),
+      if (p.place.isNotEmpty) p.place,
+      if (p.note.isNotEmpty) p.note,
+    ].join(' \u2022 ');
     return KawaiiCard(
-      color: Kawaii.cardOf(context),
-      child: StreamBuilder<List<Ritual>>(
-        stream: widget.ritualsRepo.watch(_spaceId),
-        builder: (context, snap) {
-          if (snap.connectionState == ConnectionState.waiting) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: Center(child: CircularProgressIndicator()),
-            );
-          }
-          if (snap.hasError) {
-            return KawaiiAlert(
-              title: 'Could not load rituals',
-              message: userMessage(snap.error!),
-              kind: KawaiiAlertKind.danger,
-              actionLabel: 'Retry',
-              onAction: () => setState(() {}),
-            );
-          }
-          final rituals = snap.data ?? [];
-          final done = rituals.where((r) => r.done).length;
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      color: Kawaii.sky,
+      onTap: onJump == null ? null : () => onJump!(3),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  Text('Weekly rituals',
-                      style: Theme.of(context).textTheme.titleSmall),
-                  const Spacer(),
-                  KawaiiPill(
-                      label: rituals.isEmpty
-                          ? 'fresh page'
-                          : '$done/${rituals.length} done',
-                      color: Kawaii.mint),
-                ],
+              KawaiiPill(
+                label: 'Next up \u2022 ${dayLabel(p.day)}',
+                color: Colors.white,
               ),
-              const SizedBox(height: 12),
-              if (rituals.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Text(
-                      'No rituals yet — small repeats keep couples close.',
-                      style: Theme.of(context).textTheme.bodySmall),
-                ),
-              ...rituals.map(_ritual),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: KawaiiInput(
-                      hint: 'Add a weekly ritual…',
-                      controller: _ritualCtrl,
-                      action: TextInputAction.done,
-                      onSubmitted: (_) => _addRitual(),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  KawaiiIconButton(
-                    icon: Icons.add_rounded,
-                    label: 'Add ritual',
-                    fill: Kawaii.mint,
-                    onTap: _addRitual,
-                  ),
-                ],
+              const Spacer(),
+              const KawaiiIcon(
+                icon: Icons.wb_sunny_rounded,
+                bg: Colors.white,
+                size: 40,
+                iconSize: 22,
               ),
             ],
-          );
-        },
+          ),
+          const SizedBox(height: 10),
+          Text(
+            p.title,
+            style: const TextStyle(
+              fontFamily: Kawaii.displayFamily,
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: Kawaii.ink,
+            ),
+          ),
+          if (detail.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              detail,
+              style: const TextStyle(
+                fontFamily: Kawaii.displayFamily,
+                color: Kawaii.ink,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const KawaiiDoodles(),
+              const Spacer(),
+              if (onCreate != null)
+                GestureDetector(
+                  onTap: () => onCreate!(CreateKind.date),
+                  behavior: HitTestBehavior.opaque,
+                  child: const KawaiiPill(
+                    label: 'plan another',
+                    color: Colors.white,
+                    icon: Icons.add_rounded,
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  Widget _ritual(Ritual r) {
-    final color =
-        Kawaii.notePalette[r.colorIdx % Kawaii.notePalette.length];
-    final edge = Kawaii.edgeOf(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Semantics(
-        button: true,
-        toggled: r.done,
-        label: r.title,
-        child: GestureDetector(
-          onTap: () => _toggle(r),
-          onLongPress: () => _removeRitual(r),
-          behavior: HitTestBehavior.opaque,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: r.done ? color : Kawaii.cardOf(context),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: edge, width: Kawaii.paperBorderW),
-                ),
-                child: r.done
-                    ? const Icon(Icons.check_rounded, size: 18, color: Kawaii.ink)
-                    : null,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(r.title,
-                    style: TextStyle(
+  Widget _mediumRow(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: StreamBuilder<List<DatePlan>>(
+            stream: datesRepo.watch(_spaceId),
+            builder: (context, snap) {
+              final n = snap.data?.length ?? 0;
+              return KawaiiCard(
+                color: Kawaii.skySubtle,
+                sticker: false,
+                padding: const EdgeInsets.all(14),
+                onTap: onJump == null ? null : () => onJump!(3),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const KawaiiIcon(
+                      icon: Icons.calendar_month_rounded,
+                      bg: Kawaii.sky,
+                      size: 40,
+                      iconSize: 20,
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Date plans',
+                      style: TextStyle(
                         fontFamily: Kawaii.displayFamily,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w800,
                         fontSize: 15,
-                        color: Kawaii.textOf(context),
-                        decoration:
-                            r.done ? TextDecoration.lineThrough : null)),
+                        color: Kawaii.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      n == 0 ? 'plan the first one' : '$n upcoming',
+                      style: TextStyle(
+                        fontFamily: Kawaii.displayFamily,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Kawaii.ink.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: StreamBuilder<List<Pile>>(
+            stream: pilesRepo.watch(_spaceId),
+            builder: (context, snap) {
+              final n = snap.data?.length ?? 0;
+              return KawaiiCard(
+                color: Kawaii.sunnySubtle,
+                sticker: false,
+                padding: const EdgeInsets.all(14),
+                onTap: onJump == null ? null : () => onJump!(2),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const KawaiiIcon(
+                      icon: Icons.photo_library_rounded,
+                      bg: Kawaii.sunny,
+                      size: 40,
+                      iconSize: 20,
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Photo piles',
+                      style: TextStyle(
+                        fontFamily: Kawaii.displayFamily,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                        color: Kawaii.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      n == 0 ? 'shared moments' : '$n piles',
+                      style: TextStyle(
+                        fontFamily: Kawaii.displayFamily,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Kawaii.ink.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _quickActions(BuildContext context) {
+    final actions = [
+      (Icons.edit_note_rounded, 'Note', CreateKind.note, 0),
+      (Icons.calendar_month_rounded, 'Date', CreateKind.date, 1),
+      (Icons.photo_library_rounded, 'Pile', CreateKind.pile, 2),
+      (Icons.favorite_rounded, 'You', null, 3),
+    ];
+    return Row(
+      children: [
+        for (var i = 0; i < actions.length; i++) ...[
+          if (i > 0) const SizedBox(width: 10),
+          Expanded(child: _quickTile(context, actions[i].$1, actions[i].$2, actions[i].$3, actions[i].$4)),
+        ],
+      ],
+    );
+  }
+
+  Widget _quickTile(
+    BuildContext context,
+    IconData icon,
+    String label,
+    CreateKind? kind,
+    int i,
+  ) {
+    final bg = kawaiiDecoPick(i);
+    void go() {
+      if (kind != null) {
+        if (onCreate != null) onCreate!(kind);
+      } else {
+        if (onJump != null) onJump!(4);
+      }
+    }
+
+    return Semantics(
+      button: true,
+      label: label == 'You' ? 'Open you' : 'Create $label',
+      child: GestureDetector(
+        onTap: go,
+        behavior: HitTestBehavior.opaque,
+        child: Transform.rotate(
+          angle: kawaiiDecoTilt(i),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: Kawaii.edgeOf(context),
+                width: Kawaii.paperBorderW,
               ),
-            ]),
+            ),
+            child: Column(
+              children: [
+                Icon(icon, size: 22, color: Kawaii.onFill(bg)),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontFamily: Kawaii.displayFamily,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                    color: Kawaii.onFill(bg),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
