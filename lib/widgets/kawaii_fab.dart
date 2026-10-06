@@ -146,7 +146,7 @@ class _ComposerSheetState extends State<_ComposerSheet> {
     KawaiiBtnColor.mint,
     KawaiiBtnColor.pink,
   ];
-  static const maxPileImages = 9;
+  static const maxPileImages = 1;
 
   final _picker = ImagePicker();
   int noteColor = 0;
@@ -184,18 +184,21 @@ class _ComposerSheetState extends State<_ComposerSheet> {
   Future<void> _pickImages() async {
     if (picking) return;
     if (pileImages.length >= maxPileImages) {
-      showKawaiiToast(context, 'Max 9 photos per pile',
+      showKawaiiToast(context, 'Only one photo per pile — remove it to change',
           kind: KawaiiAlertKind.warning);
       return;
     }
     setState(() => picking = true);
     try {
-      final imgs = await _picker.pickMultiImage(
-          maxWidth: 1600, imageQuality: 85);
+      final img = await _picker.pickImage(
+          source: ImageSource.gallery, maxWidth: 1600, imageQuality: 85);
       if (!mounted) return;
-      if (imgs.isNotEmpty) {
-        final room = maxPileImages - pileImages.length;
-        setState(() => pileImages.addAll(imgs.take(room)));
+      if (img != null) {
+        setState(() {
+          pileImages
+            ..clear()
+            ..add(img);
+        });
       }
     } catch (_) {
       if (!mounted) return;
@@ -407,11 +410,7 @@ class _ComposerSheetState extends State<_ComposerSheet> {
               label: 'Title',
               controller: _pileTitleCtrl),
           const SizedBox(height: 12),
-          KawaiiInput(
-              hint: 'e.g. Riverside park',
-              label: 'Location',
-              controller: _pileLocCtrl,
-              prefix: Icons.place_outlined),
+          _placeField(controller: _pileLocCtrl, label: 'Location'),
         ];
       case CreateKind.date:
         return [
@@ -426,7 +425,7 @@ class _ComposerSheetState extends State<_ComposerSheet> {
               controller: _dateNoteCtrl,
               maxLines: 2),
           const SizedBox(height: 12),
-          _placeField(),
+          _placeField(controller: _datePlaceCtrl, label: 'Place'),
           const SizedBox(height: 12),
           _dateField(),
         ];
@@ -560,24 +559,27 @@ class _ComposerSheetState extends State<_ComposerSheet> {
     }
   }
 
-  /// Place field: manual text + real map picker. The map returns the
-  /// place's main title which auto-fills this field (text-only scope).
-  Widget _placeField() {
+  /// Place/location field shared by date + pile: manual text + real map
+  /// picker. The map returns the place's main title which auto-fills
+  /// this field (text-only scope).
+  Widget _placeField(
+      {required TextEditingController controller,
+      required String label}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         KawaiiInput(
           hint: 'e.g. Riverside park',
-          label: 'Place',
-          controller: _datePlaceCtrl,
+          label: label,
+          controller: controller,
           prefix: Icons.place_outlined,
         ),
         const SizedBox(height: 8),
         Semantics(
           button: true,
-          label: 'Choose place on map',
+          label: 'Choose $label on map',
           child: GestureDetector(
-            onTap: _openPlacePicker,
+            onTap: () => _openPlacePicker(controller),
             behavior: HitTestBehavior.opaque,
             child: Container(
               padding: const EdgeInsets.symmetric(
@@ -613,16 +615,16 @@ class _ComposerSheetState extends State<_ComposerSheet> {
     );
   }
 
-  Future<void> _openPlacePicker() async {
+  Future<void> _openPlacePicker(TextEditingController controller) async {
     final picked = await Navigator.of(context).push<String>(
       MaterialPageRoute(
         builder: (_) => PlacePickerPage(
-          initialQuery: _datePlaceCtrl.text.trim(),
+          initialQuery: controller.text.trim(),
         ),
       ),
     );
     if (picked != null && picked.trim().isNotEmpty && mounted) {
-      setState(() => _datePlaceCtrl.text = picked.trim());
+      setState(() => controller.text = picked.trim());
     }
   }
 
@@ -650,9 +652,9 @@ class _ComposerSheetState extends State<_ComposerSheet> {
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(picking ? 'Opening gallery…' : 'Add photos',
+                        Text(picking ? 'Opening gallery…' : 'Add a photo',
                             style: Theme.of(context).textTheme.titleSmall),
-                        Text('From your gallery, up to 9 photos',
+                        Text('From your gallery, one photo',
                             style: Theme.of(context).textTheme.bodySmall),
                       ]),
                 ),
@@ -665,69 +667,68 @@ class _ComposerSheetState extends State<_ComposerSheet> {
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 3,
-                            crossAxisSpacing: 8,
-                            mainAxisSpacing: 8),
-                    itemCount: pileImages.length,
-                    itemBuilder: (_, i) => Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: _PileThumb(file: pileImages[i]),
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: AspectRatio(
+                          aspectRatio: 16 / 10,
+                          child: _PileThumb(file: pileImages.first),
                         ),
-                        Positioned(
-                          top: -6,
-                          right: -6,
-                          child: GestureDetector(
-                            onTap: () =>
-                                setState(() => pileImages.removeAt(i)),
+                      ),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: GestureDetector(
+                          onTap: () =>
+                              setState(() => pileImages.clear()),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Kawaii.cardOf(context),
+                              shape: BoxShape.circle,
+                            ),
                             child: Container(
-                              padding: const EdgeInsets.all(8),
+                              padding: const EdgeInsets.all(3),
                               decoration: BoxDecoration(
-                                color: Kawaii.cardOf(context),
+                                color: Kawaii.bubble,
                                 shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: edge, width: 1.5),
                               ),
-                              child: Container(
-                                padding: const EdgeInsets.all(3),
-                                decoration: BoxDecoration(
-                                  color: Kawaii.bubble,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                      color: edge, width: 1.5),
-                                ),
-                                child: const Icon(Icons.close_rounded,
-                                    size: 13, color: Kawaii.ink),
-                              ),
+                              child: const Icon(Icons.close_rounded,
+                                  size: 13, color: Kawaii.ink),
                             ),
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 9),
-                    decoration: BoxDecoration(
-                      color: Kawaii.skySubtle,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: edge, width: 2),
+                  GestureDetector(
+                    onTap: _pickImages,
+                    behavior: HitTestBehavior.opaque,
+                    child: Container(
+                      padding:
+                          const EdgeInsets.symmetric(vertical: 9),
+                      decoration: BoxDecoration(
+                        color: Kawaii.skySubtle,
+                        borderRadius: BorderRadius.circular(12),
+                        border:
+                            Border.all(color: edge, width: 2),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                          picking
+                              ? 'Opening gallery…'
+                              : 'Replace photo',
+                          style: const TextStyle(
+                              fontFamily: Kawaii.displayFamily,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13,
+                              color: Kawaii.ink)),
                     ),
-                    alignment: Alignment.center,
-                    child: Text(
-                        picking
-                            ? 'Opening gallery…'
-                            : 'Add more • ${pileImages.length} picked',
-                        style: const TextStyle(
-                            fontFamily: Kawaii.displayFamily,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 13,
-                            color: Kawaii.ink)),
                   ),
                 ],
               ),
@@ -749,22 +750,21 @@ class _PileThumb extends StatelessWidget {
       builder: (context, snap) {
         if (snap.hasData) {
           return Image.memory(snap.data!,
-              height: 96, width: double.infinity, fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+              fit: BoxFit.cover,
               errorBuilder: (_, _, _) => Container(
-                  height: 96,
                   color: Kawaii.skySubtle,
                   alignment: Alignment.center,
                   child: const Icon(Icons.broken_image_rounded)));
         }
         if (snap.hasError) {
           return Container(
-              height: 96,
               color: Kawaii.skySubtle,
               alignment: Alignment.center,
               child: const Icon(Icons.broken_image_rounded));
         }
         return Container(
-            height: 96,
             color: Kawaii.skySubtle,
             alignment: Alignment.center,
             child: const SizedBox(
