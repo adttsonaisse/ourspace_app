@@ -79,6 +79,12 @@ class _AppShellState extends State<AppShell> {
     Push.openTab.addListener(_onPushTab);
     _loadSpace();
     _checkForUpdate();
+    // Notification permission needs an attached Activity, so ask after
+    // the first frame — never from the pre-runApp Push.init(). One shot
+    // per launch; the system stops showing the dialog after denials.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(Push.ensurePermission());
+    });
   }
 
   @override

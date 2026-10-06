@@ -46,7 +46,12 @@ abstract class Push {
     try {
       await Firebase.initializeApp();
       final fm = FirebaseMessaging.instance;
-      await fm.requestPermission(alert: true, badge: true, sound: true);
+      // NOTE: no requestPermission here. init() runs fire-and-forget
+      // before runApp, when the Android Activity may not be attached yet
+      // — the plugin then errors ("Unable to detect current Android
+      // Activity"), the catch below swallows it, and the user is never
+      // asked again. Permission is requested later via ensurePermission(),
+      // called post-first-frame from AppShell / the settings toggle.
       await _local
           .resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin>()
@@ -74,6 +79,32 @@ abstract class Push {
       _ready = true;
     } catch (_) {
       // No Play Services / no google-services.json / tests: push stays off.
+    }
+  }
+
+  /// Ask for notification permission. Safe to call repeatedly: returns
+  /// true when already granted, prompts once otherwise. Must run when an
+  /// Activity is attached (post-first-frame), never from early init().
+  /// Never throws — false on tests, no Play Services, or denial.
+  static Future<bool> ensurePermission() async {
+    try {
+      final s = await FirebaseMessaging.instance
+          .requestPermission(alert: true, badge: true, sound: true);
+      return s.authorizationStatus == AuthorizationStatus.authorized ||
+          s.authorizationStatus == AuthorizationStatus.provisional;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Current system status, for the settings toggle. False when unknown.
+  static Future<bool> notificationsEnabled() async {
+    try {
+      final s = await FirebaseMessaging.instance.getNotificationSettings();
+      return s.authorizationStatus == AuthorizationStatus.authorized ||
+          s.authorizationStatus == AuthorizationStatus.provisional;
+    } catch (_) {
+      return false;
     }
   }
 

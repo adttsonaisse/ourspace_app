@@ -367,9 +367,15 @@ class _SettingsTabState extends State<SettingsTab> {
                   trailing: _stickerSwitch(
                       value: notif,
                       label: 'Sweet reminders',
-                      onChanged: (v) {
+                      onChanged: (v) async {
                         setState(() => notif = v);
                         KawaiiPrefs.saveNotif(v);
+                        if (v && !(await Push.ensurePermission())) {
+                          if (!context.mounted) return;
+                          showKawaiiToast(context,
+                              'Notifications blocked — allow them in system settings.',
+                              kind: KawaiiAlertKind.warning);
+                        }
                       })),
               _div(),
               ValueListenableBuilder<ThemeMode>(
