@@ -49,4 +49,38 @@ void main() {
       'Something hiccuped. Try again.',
     );
   });
+
+  test('Stale session maps to login action', () {
+    expect(
+      friendlySpaceError('PostgrestException(message: JWT expired)'),
+      'Session expired. Log in again.',
+    );
+    expect(
+      friendlySpaceError('401 Unauthorized'),
+      'Session expired. Log in again.',
+    );
+  });
+
+  test('Membership race tells the user to retry once', () {
+    expect(
+      friendlySpaceError(
+          'duplicate key value violates unique constraint "space_members_pkey"'),
+      'Almost there — tap Check code once more.',
+    );
+  });
+
+  test('Known join failures keep their specific copy', () {
+    expect(
+      friendlySpaceError('code not found'),
+      "Hmm, that code didn't match. Check with your person.",
+    );
+    expect(
+      friendlySpaceError('code expired'),
+      'That code expired — ask your person for a fresh one.',
+    );
+    expect(
+      friendlySpaceError('space is full'),
+      'That space already has two — solo for now?',
+    );
+  });
 }

@@ -285,6 +285,15 @@ String friendlySpaceError(Object e) {
   if (m.contains('code not found')) {
     return "Hmm, that code didn't match. Check with your person.";
   }
+  // Stale session mid-call (e.g. 'JWT expired'): Supabase auto-refreshes,
+  // but a 401 can still slip through — actionable instead of generic.
+  // Checked before 'expired' so 'JWT expired' doesn't read as a code issue.
+  if (m.contains('jwt') ||
+      m.contains('invalid token') ||
+      m.contains('unauthorized') ||
+      m.contains(' 401')) {
+    return 'Session expired. Log in again.';
+  }
   if (m.contains('expired')) {
     return 'That code expired — ask your person for a fresh one.';
   }
@@ -293,6 +302,11 @@ String friendlySpaceError(Object e) {
   }
   if (m.contains('space is full') || m.contains('full')) {
     return 'That space already has two — solo for now?';
+  }
+  // Membership race: our row already exists server-side, so the next
+  // Check code takes the already-member path and succeeds.
+  if (m.contains('duplicate key')) {
+    return 'Almost there — tap Check code once more.';
   }
   if (m.contains('not a member')) return 'Join a space first.';
   if (m.contains('log in first')) return 'Log in first.';

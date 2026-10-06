@@ -173,6 +173,33 @@ class _PairingPageState extends State<PairingPage> {
       if (mounted) setState(() => _joined = space);
     } catch (e) {
       if (!mounted) return;
+      // Recovery: the join may have committed server-side while the
+      // follow-up read failed (RLS/timeout). Only adopt when we had our
+      // own bootstrap space and now see a DIFFERENT one — otherwise the
+      // row could be our own leftover (e.g. demo bootstrap) and the real
+      // error must surface.
+      try {
+        final current = await _spaces
+            .mySpace()
+            .timeout(const Duration(seconds: 10));
+        final own = _space;
+        if (mounted &&
+            current != null &&
+            own != null &&
+            current.id != own.id) {
+          try {
+            await _spaces.leave(own.id);
+          } catch (_) {}
+          _space = null;
+          _invite = null;
+          _ticker?.cancel();
+          setState(() => _joined = current);
+          return;
+        }
+      } catch (_) {
+        // Recovery read failed too — fall through to the real error.
+      }
+      if (!mounted) return;
       setState(() => _joinError = friendlySpaceError(e));
     } finally {
       if (mounted) setState(() => _joining = false);
