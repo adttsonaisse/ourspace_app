@@ -14,6 +14,7 @@
 # Wajib isi di repo Settings > Secrets > Actions:
 #   SUPABASE_URL, SUPABASE_ANON_KEY, R2_ENDPOINT,
 #   R2_ACCESS_KEY, R2_SECRET_KEY, R2_BUCKET,
+#   GOOGLE_SERVICES_JSON (whole file content),
 #   ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
 #   ANDROID_KEY_PASSWORD, ANDROID_KEY_ALIAS
 name: build-apk
@@ -56,6 +57,21 @@ jobs:
           EOF
 
       - run: flutter pub get
+
+      # FCM: google-services.json is gitignored — restore from secret.
+      # Needed for EVERY build (the google-services plugin fails
+      # without it), not just releases.
+      - name: Restore google-services.json
+        env:
+          GS_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          set -euo pipefail
+          if [ -z "$GS_JSON" ]; then
+            echo "::error::GOOGLE_SERVICES_JSON secret is empty. Paste the whole google-services.json in repo Settings > Secrets > Actions."
+            exit 1
+          fi
+          printf '%s' "$GS_JSON" > android/app/google-services.json
+
       - run: flutter analyze
       # Hapus baris ini kalau test terlalu lama di CI:
       - run: flutter test

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -6,6 +8,7 @@ import 'data/backend.dart';
 import 'data/composer.dart';
 import 'data/models/space.dart';
 import 'data/photo_store.dart';
+import 'data/push.dart';
 import 'data/repos.dart';
 import 'theme/kawaii.dart';
 import 'theme/prefs.dart';
@@ -73,8 +76,22 @@ class _AppShellState extends State<AppShell> {
   @override
   void initState() {
     super.initState();
+    Push.openTab.addListener(_onPushTab);
     _loadSpace();
     _checkForUpdate();
+  }
+
+  @override
+  void dispose() {
+    Push.openTab.removeListener(_onPushTab);
+    super.dispose();
+  }
+
+  void _onPushTab() {
+    final t = Push.openTab.value;
+    if (t == null) return;
+    Push.openTab.value = null;
+    _jump(t);
   }
 
   /// Check GitHub releases for a newer build. Silent on any failure
@@ -159,6 +176,8 @@ class _AppShellState extends State<AppShell> {
     } else {
       _members = [];
     }
+    // Best-effort: token follows the signed-in user, paired or not.
+    unawaited(Push.registerToken());
     if (mounted) setState(() => _spaceLoading = false);
   }
 

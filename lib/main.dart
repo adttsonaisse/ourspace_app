@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'data/push.dart';
 import 'data/supa.dart';
 import 'theme/kawaii.dart';
 import 'theme/prefs.dart';
@@ -7,6 +10,8 @@ import 'screens/auth_gate.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Supa.init();
+  // Fire-and-forget: push must never delay first frame or trap splash.
+  unawaited(Push.init());
   runApp(const OurSpaceApp());
 }
 

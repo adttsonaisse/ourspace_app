@@ -8,6 +8,7 @@ import '../data/backend.dart';
 import '../data/backend_errors.dart';
 import '../data/format.dart';
 import '../data/models/space.dart';
+import '../data/push.dart';
 import '../data/repos.dart';
 import '../theme/kawaii.dart';
 import '../theme/prefs.dart';
@@ -181,6 +182,8 @@ class _SettingsTabState extends State<SettingsTab> {
     if (_leaving) return;
     setState(() => _leaving = true);
     try {
+      // Drop only this device's token while the uid still exists.
+      await Push.unregisterToken();
       await _auth.signOut();
     } catch (e) {
       if (!mounted) return;

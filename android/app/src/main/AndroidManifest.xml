@@ -3,6 +3,8 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <!-- Push (FCM): required on Android 13+ to show notifications. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <!-- In-app update: install the APK downloaded from GitHub Releases. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
     <application
@@ -36,6 +38,14 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Push (FCM) when the app is closed: system-tray notifications
+             use this channel + icon (no Dart code runs in that path). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="ourspace_push" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@mipmap/ic_launcher" />
         <!-- Required by ota_update: serves the downloaded APK to the
              system installer. Authority must match the plugin default
              "<applicationId>.ota_update_provider". Missing this crashes
