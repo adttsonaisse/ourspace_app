@@ -68,8 +68,7 @@ void main() {
     expect(find.textContaining('Next up'), findsOneWidget);
   });
 
-  testWidgets('Quick actions call onCreate', (tester) async {
-    CreateKind? tapped;
+  testWidgets('Quick actions call onCreate', (tester) async {    CreateKind? tapped;
     await tester.pumpWidget(MaterialApp(
       theme: Kawaii.light(),
       home: Scaffold(
@@ -82,16 +81,27 @@ void main() {
               onCreate: (k) => tapped = k)),
     ));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Note'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Note'));
     expect(tapped, CreateKind.note);
   });
 
-  testWidgets('Pair title uses member names', (tester) async {
+  testWidgets('Pair profiles show both member names', (tester) async {
     await _pump(tester, members: const [
       MemberProfile(userId: 'demo-user', username: 'Mochi'),
       MemberProfile(userId: 'p2', username: 'Boba'),
     ]);
-    expect(find.text('Mochi & Boba'), findsOneWidget);
+    expect(find.text('Mochi'), findsOneWidget);
+    expect(find.text('Boba'), findsOneWidget);
+  });
+
+  testWidgets('Hero shows waiting slot when solo', (tester) async {
+    await _pump(tester, members: const [
+      MemberProfile(userId: 'demo-user', username: 'Mochi'),
+    ]);
+    expect(find.text('Mochi'), findsOneWidget);
+    expect(find.text('Waiting…'), findsOneWidget);
   });
 
   test('Space effectiveAnniversary falls back to createdAt', () {

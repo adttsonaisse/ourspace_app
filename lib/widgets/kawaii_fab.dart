@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../data/backend_errors.dart';
 import '../data/composer.dart';
+import '../data/format.dart';
 import '../theme/kawaii.dart';
+import 'place_picker.dart';
 import 'kawaii.dart';
 import 'kawaii_deco.dart';
 
@@ -424,22 +426,203 @@ class _ComposerSheetState extends State<_ComposerSheet> {
               controller: _dateNoteCtrl,
               maxLines: 2),
           const SizedBox(height: 12),
-          KawaiiInput(
-              hint: 'e.g. Riverside park',
-              label: 'Place',
-              controller: _datePlaceCtrl,
-              prefix: Icons.place_outlined),
+          _placeField(),
           const SizedBox(height: 12),
-          KawaiiCalendar(
-            month: calMonth,
-            selected: calDay,
-            onPrev: () => setState(() =>
-                calMonth = DateTime(calMonth.year, calMonth.month - 1)),
-            onNext: () => setState(() =>
-                calMonth = DateTime(calMonth.year, calMonth.month + 1)),
-            onSelect: (d) => setState(() => calDay = d),
-          ),
+          _dateField(),
         ];
+    }
+  }
+
+  /// Read-only date field: tap opens the calendar in a dialog.
+  Widget _dateField() {
+    final edge = Kawaii.edgeOf(context);
+    final fg = Kawaii.textOf(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 6),
+          child: Text('Date',
+              style: Theme.of(context).textTheme.titleSmall),
+        ),
+        Semantics(
+          button: true,
+          label: 'Pick date, currently ${dayLabelYear(calDay)}',
+          child: GestureDetector(
+            onTap: _pickDate,
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 15),
+              decoration: BoxDecoration(
+                color: Kawaii.cardOf(context),
+                borderRadius:
+                    BorderRadius.circular(Kawaii.radiusInput),
+                border: Border.all(
+                    color: edge, width: Kawaii.paperBorderW),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.calendar_month_rounded,
+                      color: fg, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      dayLabelYear(calDay),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyLarge
+                          ?.copyWith(color: fg),
+                    ),
+                  ),
+                  Icon(Icons.expand_more_rounded,
+                      color: fg.withValues(alpha: 0.6), size: 20),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _pickDate() async {
+    var tmpMonth = calMonth;
+    var tmpDay = calDay;
+    final picked = await showDialog<DateTime>(
+      context: context,
+      builder: (d) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        insetPadding: const EdgeInsets.all(20),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+          decoration: BoxDecoration(
+            color: Kawaii.cardOf(d),
+            borderRadius: BorderRadius.circular(Kawaii.radiusCard),
+            border: Border.all(
+                color: Kawaii.edgeOf(d), width: Kawaii.borderW),
+          ),
+          child: StatefulBuilder(
+            builder: (dctx, setInner) => SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  KawaiiCalendar(
+                    month: tmpMonth,
+                    selected: tmpDay,
+                    onPrev: () => setInner(() => tmpMonth = DateTime(
+                        tmpMonth.year, tmpMonth.month - 1)),
+                    onNext: () => setInner(() => tmpMonth = DateTime(
+                        tmpMonth.year, tmpMonth.month + 1)),
+                    onSelect: (day) => setInner(() {
+                      tmpDay = day;
+                      tmpMonth =
+                          DateTime(day.year, day.month);
+                    }),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: KawaiiButton(
+                          label: 'Cancel',
+                          color: KawaiiBtnColor.white,
+                          onTap: () =>
+                              Navigator.of(dctx).pop(),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: KawaiiButton(
+                          label: 'Choose',
+                          icon: Icons.check_rounded,
+                          color: KawaiiBtnColor.sunny,
+                          onTap: () =>
+                              Navigator.of(dctx).pop(tmpDay),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    if (picked != null && mounted) {
+      setState(() {
+        calDay = DateTime(picked.year, picked.month, picked.day);
+        calMonth = DateTime(picked.year, picked.month);
+      });
+    }
+  }
+
+  /// Place field: manual text + real map picker. The map returns the
+  /// place's main title which auto-fills this field (text-only scope).
+  Widget _placeField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        KawaiiInput(
+          hint: 'e.g. Riverside park',
+          label: 'Place',
+          controller: _datePlaceCtrl,
+          prefix: Icons.place_outlined,
+        ),
+        const SizedBox(height: 8),
+        Semantics(
+          button: true,
+          label: 'Choose place on map',
+          child: GestureDetector(
+            onTap: _openPlacePicker,
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 14, vertical: 11),
+              decoration: BoxDecoration(
+                color: Kawaii.sunnySubtle,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: Kawaii.edgeOf(context),
+                    width: Kawaii.paperBorderW),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.map_rounded,
+                      size: 18, color: Kawaii.ink),
+                  SizedBox(width: 8),
+                  Text(
+                    'Choose on map',
+                    style: TextStyle(
+                      fontFamily: Kawaii.displayFamily,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                      color: Kawaii.ink,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _openPlacePicker() async {
+    final picked = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => PlacePickerPage(
+          initialQuery: _datePlaceCtrl.text.trim(),
+        ),
+      ),
+    );
+    if (picked != null && picked.trim().isNotEmpty && mounted) {
+      setState(() => _datePlaceCtrl.text = picked.trim());
     }
   }
 

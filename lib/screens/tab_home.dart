@@ -55,12 +55,6 @@ class HomeTab extends StatelessWidget {
     return n.isEmpty ? null : n;
   }
 
-  String get _pairTitle {
-    final p = _partnerName;
-    if (p == null) return _meName;
-    return '$_meName & $p';
-  }
-
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -100,10 +94,6 @@ class HomeTab extends StatelessWidget {
         : 'day ${daysSince(anni) + 1} together';
     final anniLabel =
         anni == null ? 'set your anniversary in you' : dayLabelYear(anni);
-    final meInitial = avatarInitial(_meName, fallback: 'Y');
-    final partnerInitial = _partnerName == null
-        ? null
-        : avatarInitial(_partnerName, fallback: '?');
     return KawaiiCard(
       color: Kawaii.peach,
       padding: EdgeInsets.zero,
@@ -141,30 +131,7 @@ class HomeTab extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 2),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Text(
-                      _pairTitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w900,
-                        fontFamily: Kawaii.displayFamily,
-                        color: Kawaii.ink,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  KawaiiAvatarPair(
-                    first: meInitial,
-                    second: partnerInitial,
-                    size: 40,
-                  ),
-                ],
-              ),
+              _pairProfiles(),
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -188,6 +155,67 @@ class HomeTab extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// Two profiles side by side with a heart in the middle:
+  /// [avatar + name] ❤ [avatar + name]. Shows a waiting slot when
+  /// the partner hasn't joined yet.
+  Widget _pairProfiles() {
+    final me = _meName;
+    final partner = _partnerName;
+    return Row(
+      children: [
+        Expanded(child: _profileCell(name: me, bg: Kawaii.peach)),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 6),
+          child: Icon(Icons.favorite_rounded, size: 26, color: Kawaii.ink),
+        ),
+        Expanded(
+          child: partner == null
+              ? _profileCell(
+                  name: 'Waiting…',
+                  bg: Colors.white,
+                  initialOverride: '?',
+                  muted: true,
+                )
+              : _profileCell(name: partner, bg: Kawaii.sky),
+        ),
+      ],
+    );
+  }
+
+  Widget _profileCell({
+    required String name,
+    required Color bg,
+    String? initialOverride,
+    bool muted = false,
+  }) {
+    final initial =
+        initialOverride ?? avatarInitial(name, fallback: '?');
+    return Semantics(
+      label: name,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          KawaiiAvatar(text: initial, bg: bg, size: 56),
+          const SizedBox(height: 6),
+          Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w900,
+              fontFamily: Kawaii.displayFamily,
+              color: muted
+                  ? Kawaii.ink.withValues(alpha: 0.55)
+                  : Kawaii.ink,
+            ),
+          ),
+        ],
       ),
     );
   }
