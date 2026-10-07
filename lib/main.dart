@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'data/push.dart';
+import 'data/storage_maintenance.dart';
 import 'data/supa.dart';
 import 'theme/kawaii.dart';
 import 'theme/prefs.dart';
@@ -9,6 +10,12 @@ import 'screens/auth_gate.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Bounded in-memory image cache so scrolling piles/map tiles can't
+  // balloon RAM; disk is bounded separately in storage_maintenance.
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 100 << 20;
+  PaintingBinding.instance.imageCache.maximumSize = 200;
+  // Fire-and-forget: picker leftovers + old OTA APKs, never blocks launch.
+  unawaited(cleanupStaleAppFiles());
   await Supa.init();
   // Fire-and-forget: push must never delay first frame or trap splash.
   unawaited(Push.init());

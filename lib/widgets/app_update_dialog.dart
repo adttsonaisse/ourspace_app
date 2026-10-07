@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:ota_update/ota_update.dart';
 
 import '../data/app_update_repo.dart';
+import '../data/storage_maintenance.dart';
 import '../theme/kawaii.dart';
 import 'kawaii.dart';
 
@@ -51,38 +52,43 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
       _progress = 0;
       _error = null;
     });
-    final tag = widget.release.tag.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '');
-    _sub = OtaUpdate()
-        .execute(widget.release.apkUrl,
-            destinationFilename: 'ourspace-$tag.apk')
-        .listen((e) {
+    // Free space first: old ourspace-*.apk otherwise pile up (~54MB each)
+    // in files/ota_update/ and storage balloons.
+    pruneOtaUpdates(keepNewest: 0).then((_) {
       if (!mounted) return;
-      switch (e.status) {
-        case OtaStatus.DOWNLOADING:
-          setState(() => _progress = int.tryParse(e.value ?? '0') ?? 0);
-        case OtaStatus.INSTALLING:
-          setState(() {
-            _installing = true;
-            _progress = 100;
-          });
-        case OtaStatus.INSTALLATION_DONE:
-          if (mounted) Navigator.of(context).maybePop();
-        case OtaStatus.PERMISSION_NOT_GRANTED_ERROR:
-          setState(() {
-            _busy = false;
-            _error = 'Allow “install unknown apps” for ourspace, then retry.';
-          });
-        case OtaStatus.DOWNLOAD_ERROR:
-          setState(() {
-            _busy = false;
-            _error = 'Download failed — check connection and retry.';
-          });
-        default:
-          setState(() {
-            _busy = false;
-            _error = 'Update hiccuped — try the release page instead.';
-          });
-      }
+      final tag = widget.release.tag.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '');
+      _sub = OtaUpdate()
+          .execute(widget.release.apkUrl,
+              destinationFilename: 'ourspace-$tag.apk')
+          .listen((e) {
+        if (!mounted) return;
+        switch (e.status) {
+          case OtaStatus.DOWNLOADING:
+            setState(() => _progress = int.tryParse(e.value ?? '0') ?? 0);
+          case OtaStatus.INSTALLING:
+            setState(() {
+              _installing = true;
+              _progress = 100;
+            });
+          case OtaStatus.INSTALLATION_DONE:
+            if (mounted) Navigator.of(context).maybePop();
+          case OtaStatus.PERMISSION_NOT_GRANTED_ERROR:
+            setState(() {
+              _busy = false;
+              _error = 'Allow “install unknown apps” for ourspace, then retry.';
+            });
+          case OtaStatus.DOWNLOAD_ERROR:
+            setState(() {
+              _busy = false;
+              _error = 'Download failed — check connection and retry.';
+            });
+          default:
+            setState(() {
+              _busy = false;
+              _error = 'Update hiccuped — try the release page instead.';
+            });
+        }
+      });
     });
   }
 

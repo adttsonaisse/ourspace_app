@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../data/backend_errors.dart';
 import '../data/composer.dart';
 import '../data/format.dart';
+import '../data/storage_maintenance.dart';
 import '../theme/kawaii.dart';
 import 'place_picker.dart';
 import 'kawaii.dart';
@@ -191,14 +192,18 @@ class _ComposerSheetState extends State<_ComposerSheet> {
     setState(() => picking = true);
     try {
       final img = await _picker.pickImage(
-          source: ImageSource.gallery, maxWidth: 1600, imageQuality: 85);
+          source: ImageSource.gallery, maxWidth: 1080, imageQuality: 75);
       if (!mounted) return;
       if (img != null) {
+        final old = List.of(pileImages);
         setState(() {
           pileImages
             ..clear()
             ..add(img);
         });
+        for (final f in old) {
+          await deletePickedFile(f);
+        }
       }
     } catch (_) {
       if (!mounted) return;
@@ -235,11 +240,19 @@ class _ComposerSheetState extends State<_ComposerSheet> {
               body: _noteCtrl.text.trim(),
               colorIdx: noteColor);
         case CreateKind.pile:
+          final picked = List.of(pileImages);
           final report = await deps.composer.createPile(
               spaceId: deps.spaceId,
               title: _pileTitleCtrl.text.trim(),
               location: _pileLocCtrl.text.trim(),
-              images: pileImages);
+              images: picked);
+          // Upload reads bytes first, so the image_picker cache copy can
+          // go right away — even on partial failure. Otherwise every
+          // create/delete cycle leaks a file and storage balloons.
+          for (final f in picked) {
+            await deletePickedFile(f);
+          }
+          if (mounted) setState(() => pileImages.clear());
           if (report.failed > 0 && mounted) {
             showKawaiiToast(context,
                 'Pile saved — ${report.failed} photo(s) could not upload',
@@ -681,8 +694,13 @@ class _ComposerSheetState extends State<_ComposerSheet> {
                         top: 8,
                         right: 8,
                         child: GestureDetector(
-                          onTap: () =>
-                              setState(() => pileImages.clear()),
+                          onTap: () async {
+                            final old = List.of(pileImages);
+                            setState(() => pileImages.clear());
+                            for (final f in old) {
+                              await deletePickedFile(f);
+                            }
+                          },
                           child: Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(

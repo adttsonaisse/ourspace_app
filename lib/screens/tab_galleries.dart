@@ -1,10 +1,12 @@
 import 'dart:typed_data';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../data/backend_errors.dart';
 import '../data/models/content.dart';
 import '../data/photo_store.dart';
 import '../data/repos.dart';
+import '../data/storage_maintenance.dart';
 import '../theme/kawaii.dart';
 import '../widgets/kawaii.dart';
 import '../widgets/kawaii_deco.dart';
@@ -65,6 +67,7 @@ class _GalleriesTabState extends State<GalleriesTab> {
     try {
       await widget.pilesRepo.removePhoto(ph.id);
       await widget.photoStore.remove(ph.r2Key);
+      await photoCache.removeFile(ph.r2Key);
     } catch (e) {
       _snack(userMessage(e), kind: KawaiiAlertKind.danger);
       return;
@@ -84,6 +87,7 @@ class _GalleriesTabState extends State<GalleriesTab> {
     try {
       for (final ph in shots) {
         await widget.photoStore.remove(ph.r2Key);
+        await photoCache.removeFile(ph.r2Key);
       }
       await widget.pilesRepo.removePile(p.id);
       if (!mounted) return;
@@ -450,11 +454,17 @@ class _PhotoImage extends StatelessWidget {
                 fit: BoxFit.cover,
                 errorBuilder: (_, _, _) => _broken());
           }
-          return Image.network(v.url!,
-              fit: BoxFit.cover,
-              loadingBuilder: (_, w, p) =>
-                  p == null ? w : _loading(),
-              errorBuilder: (_, _, _) => _broken());
+          // Bounded disk cache keyed by r2Key (not the rotating presigned
+          // URL) so repeat views hit cache instead of re-downloading
+          // full-res originals until storage balloons.
+          return CachedNetworkImage(
+            imageUrl: v.url!,
+            cacheKey: r2Key,
+            cacheManager: photoCache,
+            fit: BoxFit.cover,
+            placeholder: (_, _) => _loading(),
+            errorWidget: (_, _, _) => _broken(),
+          );
         }
         if (snap.hasError) return _broken();
         return _loading();

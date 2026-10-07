@@ -10,6 +10,7 @@ import '../data/format.dart';
 import '../data/models/space.dart';
 import '../data/push.dart';
 import '../data/repos.dart';
+import '../data/storage_maintenance.dart';
 import '../theme/kawaii.dart';
 import '../theme/prefs.dart';
 import '../widgets/app_update_dialog.dart';
@@ -46,7 +47,9 @@ class _SettingsTabState extends State<SettingsTab> {
   bool _savingProfile = false;
   bool _savingAnniversary = false;
   bool _checkingUpdate = false;
+  bool _clearingCache = false;
   String? _version;
+  String? _cacheLabel;
   late final AuthRepo _auth;
   late final SpaceRepo _spaces;
   List<MemberProfile> _members = [];
@@ -95,6 +98,7 @@ class _SettingsTabState extends State<SettingsTab> {
     });
     _loadMembers();
     _loadVersion();
+    _loadCacheSize();
   }
 
   @override
@@ -120,6 +124,33 @@ class _SettingsTabState extends State<SettingsTab> {
       final info = await PackageInfo.fromPlatform();
       if (mounted) setState(() => _version = info.version);
     } catch (_) {}
+  }
+
+  Future<void> _loadCacheSize() async {
+    try {
+      final bytes = await getAppCacheBytes();
+      if (mounted) setState(() => _cacheLabel = formatBytes(bytes));
+    } catch (_) {
+      if (mounted) setState(() => _cacheLabel = null);
+    }
+  }
+
+  Future<void> _clearCache() async {
+    if (_clearingCache) return;
+    setState(() => _clearingCache = true);
+    try {
+      await clearAppCaches();
+      await _loadCacheSize();
+      if (!mounted) return;
+      showKawaiiToast(context, 'Cache cleared — storage is fresh again',
+          kind: KawaiiAlertKind.success);
+    } catch (_) {
+      if (!mounted) return;
+      showKawaiiToast(context, 'Could not clear cache — try again',
+          kind: KawaiiAlertKind.warning);
+    } finally {
+      if (mounted) setState(() => _clearingCache = false);
+    }
   }
 
   Future<void> _manualCheckUpdate() async {
@@ -426,6 +457,31 @@ class _SettingsTabState extends State<SettingsTab> {
                     ],
                   ),
                   onTap: _checkingUpdate ? null : _manualCheckUpdate),
+              _div(),
+              _row(
+                  Icons.cleaning_services_rounded,
+                  _clearingCache ? 'Clearing…' : 'Clear cache',
+                  Kawaii.bubble,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_cacheLabel != null)
+                        Text(_cacheLabel!,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700)),
+                      if (_cacheLabel != null) const SizedBox(width: 6),
+                      if (_clearingCache)
+                        const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child:
+                              CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      else
+                        Icon(Icons.arrow_forward_ios_rounded,
+                            size: 14, color: Kawaii.mutedOf(context)),
+                    ],
+                  ),
+                  onTap: _clearingCache ? null : _clearCache),
             ]),
           ),
           const SizedBox(height: 16),
