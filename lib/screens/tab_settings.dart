@@ -41,7 +41,7 @@ class SettingsTab extends StatefulWidget {
 }
 
 class _SettingsTabState extends State<SettingsTab> {
-  bool notif = true;
+  bool notif = false;
   bool _leaving = false;
   bool _exporting = false;
   bool _savingProfile = false;
@@ -400,12 +400,21 @@ class _SettingsTabState extends State<SettingsTab> {
                       label: 'Sweet reminders',
                       onChanged: (v) async {
                         setState(() => notif = v);
-                        KawaiiPrefs.saveNotif(v);
-                        if (v && !(await Push.ensurePermission())) {
-                          if (!context.mounted) return;
-                          showKawaiiToast(context,
-                              'Notifications blocked — allow them in system settings.',
-                              kind: KawaiiAlertKind.warning);
+                        await KawaiiPrefs.saveNotif(v);
+                        if (v) {
+                          if (await Push.ensurePermission()) {
+                            await Push.registerToken();
+                          } else {
+                            if (!context.mounted) return;
+                            setState(() => notif = false);
+                            await KawaiiPrefs.saveNotif(false);
+                            if (!context.mounted) return;
+                            showKawaiiToast(context,
+                                'Notifications blocked — allow them in system settings.',
+                                kind: KawaiiAlertKind.warning);
+                          }
+                        } else {
+                          await Push.unregisterToken();
                         }
                       })),
               _div(),

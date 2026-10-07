@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'supa.dart';
+import '../theme/prefs.dart';
 
 /// Tab opened when a push is tapped. Mirrors AppShell titles order:
 /// home(0) notes(1) piles(2) dates(3) you(4).
@@ -115,6 +116,9 @@ abstract class Push {
 
   static Future<void> _showForeground(RemoteMessage m) async {
     try {
+      final enabled =
+          await KawaiiPrefs.loadNotif().timeout(const Duration(seconds: 1), onTimeout: () => false);
+      if (!enabled) return;
       final n = m.notification;
       if (n == null) return;
       await _local.show(

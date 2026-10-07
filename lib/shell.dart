@@ -79,12 +79,6 @@ class _AppShellState extends State<AppShell> {
     Push.openTab.addListener(_onPushTab);
     _loadSpace();
     _checkForUpdate();
-    // Notification permission needs an attached Activity, so ask after
-    // the first frame — never from the pre-runApp Push.init(). One shot
-    // per launch; the system stops showing the dialog after denials.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(Push.ensurePermission());
-    });
   }
 
   @override
@@ -182,8 +176,12 @@ class _AppShellState extends State<AppShell> {
     } else {
       _members = [];
     }
-    // Best-effort: token follows the signed-in user, paired or not.
-    unawaited(Push.registerToken());
+    // Best-effort: token follows the signed-in user, paired or not —
+    // but only when the user opted in (default off). Fire-and-forget so
+    // a slow prefs read can never block the shell (or widget tests).
+    KawaiiPrefs.loadNotif().then((enabled) {
+      if (enabled) unawaited(Push.registerToken());
+    }).catchError((_) {});
     if (mounted) setState(() => _spaceLoading = false);
   }
 

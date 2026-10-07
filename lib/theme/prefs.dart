@@ -20,7 +20,7 @@ abstract class KawaiiPrefs {
 
   static Future<bool> loadNotif() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_notifKey) ?? true;
+    return prefs.getBool(_notifKey) ?? false;
   }
 
   static Future<void> saveNotif(bool v) async {
