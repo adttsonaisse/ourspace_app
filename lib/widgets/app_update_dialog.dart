@@ -71,6 +71,9 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
               _progress = 100;
             });
           case OtaStatus.INSTALLATION_DONE:
+            // Only fires for system apps (PackageInstaller path). On regular
+            // devices the installer takes over and this never arrives — the
+            // leftover APK is swept by cleanupStaleAppFiles on next launch.
             if (mounted) Navigator.of(context).maybePop();
           case OtaStatus.PERMISSION_NOT_GRANTED_ERROR:
             setState(() {

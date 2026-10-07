@@ -87,6 +87,10 @@ abstract class Push {
   /// true when already granted, prompts once otherwise. Must run when an
   /// Activity is attached (post-first-frame), never from early init().
   /// Never throws — false on tests, no Play Services, or denial.
+  /// Note: on Android <13 there is no runtime dialog (POST_NOTIFICATIONS
+  /// doesn't exist; notifications are granted at install), so the FCM plugin
+  /// resolves authorized immediately — toggle ON with no dialog is correct
+  /// there, not a bug.
   static Future<bool> ensurePermission() async {
     try {
       final s = await FirebaseMessaging.instance

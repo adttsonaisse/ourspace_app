@@ -101,7 +101,13 @@ Future<void> deletePickedFile(XFile file) async {
   } catch (_) {}
 }
 
-/// Startup sweep: picker leftovers + old OTA APKs (keeps newest 1).
+/// Startup sweep: picker leftovers + ALL downloaded OTA APKs.
+/// keepNewest is 0 on purpose: once an update is installed the PackageManager
+/// owns the app and the APK is dead weight (~54MB). Even when the user
+/// downloads but taps Later, the next launch sweeps it and they re-download
+/// on retry — cheap compared to permanent bloat. (INSTALLATION_DONE from the
+/// ota_update plugin only fires for system apps via PackageInstaller, so the
+/// startup sweep — not the update dialog — is the real cleanup point.)
 /// Never throws — storage cleanup must not break launch.
 Future<void> cleanupStaleAppFiles() async {
   if (kIsWeb) return;
@@ -118,11 +124,12 @@ Future<void> cleanupStaleAppFiles() async {
         }
       } catch (_) {}
     }
-    await pruneOtaUpdates(keepNewest: 1);
+    await pruneOtaUpdates(keepNewest: 0);
   } catch (_) {}
 }
 
-/// Delete old `ourspace-*.apk`, keep the newest [keepNewest].
+/// Delete downloaded `ourspace-*.apk` files, keeping the newest [keepNewest].
+/// Pass 0 to remove all of them (post-install state: nothing to keep).
 Future<void> pruneOtaUpdates({int keepNewest = 1}) async {
   if (kIsWeb) return;
   try {
@@ -207,6 +214,7 @@ Future<void> clearAppCaches() async {
     }
     // Deleting libCachedImageData files above may leave empty dirs;
     // emptyCache() already dropped the index, so a rescan rebuilds clean.
-    await pruneOtaUpdates(keepNewest: 1);
+    // No APK is worth keeping after install — sweep them all.
+    await pruneOtaUpdates(keepNewest: 0);
   } catch (_) {}
 }

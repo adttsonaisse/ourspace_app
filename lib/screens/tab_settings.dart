@@ -402,6 +402,8 @@ class _SettingsTabState extends State<SettingsTab> {
                         setState(() => notif = v);
                         await KawaiiPrefs.saveNotif(v);
                         if (v) {
+                          // Android <13 has no runtime dialog; ensurePermission
+                          // resolves authorized at once, so no-dialog ON is OK.
                           if (await Push.ensurePermission()) {
                             await Push.registerToken();
                           } else {
