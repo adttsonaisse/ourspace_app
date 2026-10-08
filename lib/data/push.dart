@@ -32,6 +32,11 @@ abstract class Push {
   /// Set when a push is tapped; AppShell jumps then clears it.
   static final ValueNotifier<int?> openTab = ValueNotifier(null);
 
+  /// Set when an app-update push is tapped; AppShell re-checks GitHub
+  /// then clears it. Value is the release tag when known, 'tap'
+  /// as a sentinel when only the kind survived (local tap payload).
+  static final ValueNotifier<String?> openUpdate = ValueNotifier(null);
+
   static bool _ready = false;
   static final _local = FlutterLocalNotificationsPlugin();
 
@@ -63,7 +68,15 @@ abstract class Push {
       await _local.initialize(
         settings: initSettings,
         onDidReceiveNotificationResponse: (r) {
-          final tab = _tabForKind(r.payload);
+          final p = r.payload ?? '';
+          if (p == 'update' || p.startsWith('update:')) {
+            final tag = p.contains(':')
+                ? p.split(':').sublist(1).join(':').trim()
+                : '';
+            openUpdate.value = tag.isEmpty ? 'tap' : tag;
+            return;
+          }
+          final tab = _tabForKind(p.isEmpty ? null : p);
           if (tab != null) openTab.value = tab;
         },
       );
@@ -114,6 +127,11 @@ abstract class Push {
   }
 
   static void _route(RemoteMessage m) {
+    if (m.data['kind'] == 'update') {
+      final tag = ((m.data['tag'] as String?) ?? '').trim();
+      openUpdate.value = tag.isEmpty ? 'tap' : tag;
+      return;
+    }
     final tab = _tabForKind(m.data['kind']);
     if (tab != null) openTab.value = tab;
   }
@@ -125,6 +143,8 @@ abstract class Push {
       if (!enabled) return;
       final n = m.notification;
       if (n == null) return;
+      final kind = m.data['kind'];
+      final tag = ((m.data['tag'] as String?) ?? '').trim();
       await _local.show(
         id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
         title: n.title,
@@ -139,7 +159,7 @@ abstract class Push {
             priority: Priority.high,
           ),
         ),
-        payload: m.data['kind'],
+        payload: kind == 'update' ? 'update:$tag' : kind as String?,
       );
     } catch (_) {}
   }

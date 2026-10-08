@@ -17,6 +17,9 @@
 #   GOOGLE_SERVICES_JSON (whole file content),
 #   ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
 #   ANDROID_KEY_PASSWORD, ANDROID_KEY_ALIAS
+# Opsional tapi disarankan untuk notif update FCM:
+#   PUSH_WEBHOOK_SECRET (sama dengan secret Edge Function send-push;
+#   kalau kosong, langkah broadcast dilewati dengan warning).
 name: build-apk
 
 on:
@@ -143,3 +146,28 @@ jobs:
               --title "$TAG" \
               --notes "Auto build ourspace $TAG"
           fi
+
+      # Broadcast FCM ke SEMUA device terdaftar tiap ada tag baru.
+      # Best-effort: kegagalan push tidak menggagalkan rilis.
+      # Butuh secret PUSH_WEBHOOK_SECRET (= secret function send-push).
+      - name: Broadcast update push via FCM
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PUSH_SECRET: ${{ secrets.PUSH_WEBHOOK_SECRET }}
+        run: |
+          set -euo pipefail
+          TAG="${{ github.ref_name }}"
+          URL="https://github.com/${{ github.repository }}/releases/tag/$TAG"
+          if [ -z "${PUSH_SECRET:-}" ]; then
+            echo "::warning::PUSH_WEBHOOK_SECRET empty, skipping update push."
+            exit 0
+          fi
+          NOTES="$(gh release view "$TAG" --json body -q .body 2>/dev/null || echo "Auto build ourspace $TAG")"
+          PAYLOAD="$(jq -n --arg tag "$TAG" --arg url "$URL" --arg notes "$NOTES" \
+            '{type:"app_update", tag:$tag, url:$url, notes:$notes}')"
+          curl -sS -m 20 -X POST \
+            https://idyixvfepfuylmopvwbc.supabase.co/functions/v1/send-push \
+            -H "Content-Type: application/json" \
+            -H "x-push-secret: $PUSH_SECRET" \
+            -d "$PAYLOAD" || echo "::warning::update push failed — app still works via in-app check."

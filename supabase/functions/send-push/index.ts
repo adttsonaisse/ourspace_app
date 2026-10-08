@@ -1,7 +1,12 @@
 // send-push — Supabase Edge Function (Deno, zero dependencies).
-// Notifies the partner's devices via FCM HTTP v1 when something new
-// lands in a shared space. Called by the pg_net triggers in m13 with:
-//   { table, space_id, actor_id, title, body }
+// Two callers:
+//   1) Partner updates: pg_net triggers in m13 post
+//      { table, space_id, actor_id, title, body } on every partner-visible
+//      insert (notes / piles / date_plans). Fans out to the partner's
+//      devices only.
+//   2) App updates: the GitHub release workflow posts
+//      { type: "app_update", tag, url, notes } after a tag build is
+//      published. Fans out to EVERY registered device.
 // Auth: x-push-secret header must equal the PUSH_WEBHOOK_SECRET secret.
 // Env (Dashboard > Edge Functions > Secrets, never committed):
 //   FIREBASE_SERVICE_ACCOUNT_JSON, PUSH_WEBHOOK_SECRET
@@ -99,6 +104,77 @@ async function rest(
   return { ok: res.ok, status: res.status, json };
 }
 
+// Shared FCM fan-out: sends one notification to every token, collects
+// dead (uninstalled) tokens so callers can sweep them. Never throws
+// for transient per-token failures — they are simply unsent.
+async function dispatch(
+  tokens: string[],
+  title: string,
+  bodyText: string,
+  data: Record<string, string>,
+): Promise<{ sent: number; dead: string[] }> {
+  const { token, projectId } = await fcmAuth();
+  let sent = 0;
+  const dead: string[] = [];
+  for (const t of tokens) {
+    const res = await fetch(
+      "https://fcm.googleapis.com/v1/projects/" +
+        projectId +
+        "/messages:send",
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + token,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: {
+            token: t,
+            notification: { title, body: bodyText },
+            android: {
+              priority: "high",
+              notification: { channel_id: "ourspace_push" },
+            },
+            data,
+          },
+        }),
+      },
+    );
+    if (res.ok) {
+      sent++;
+    } else {
+      try {
+        const err = (await res.json()) as {
+          error?: { status?: string };
+        };
+        if (err?.error?.status === "NOT_FOUND") dead.push(t);
+      } catch {
+        // Leave the token; transient failure.
+      }
+    }
+  }
+  return { sent, dead };
+}
+
+async function sweepDead(dead: string[]): Promise<void> {
+  // Drop tokens FCM no longer knows (app uninstalled): keeps the table
+  // clean so future sends don't pay for dead rows.
+  for (const d of dead) {
+    await fetch(
+      SUPABASE_URL +
+        "/rest/v1/device_tokens?token=eq." +
+        encodeURIComponent(d),
+      {
+        method: "DELETE",
+        headers: {
+          apikey: SERVICE_ROLE,
+          Authorization: "Bearer " + SERVICE_ROLE,
+        },
+      },
+    );
+  }
+}
+
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method !== "POST") {
     return new Response("method not allowed", { status: 405 });
@@ -107,17 +183,54 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return new Response("unauthorized", { status: 401 });
   }
   let body: {
+    type?: string;
     table?: string;
     space_id?: string;
     actor_id?: string;
     title?: string;
     body?: string;
+    tag?: string;
+    url?: string;
+    notes?: string;
   };
   try {
     body = (await req.json()) as typeof body;
   } catch {
     return new Response("bad json", { status: 400 });
   }
+
+  // Broadcast path: new app version released (called by the GitHub
+  // release workflow, NOT by pg_net). Payload:
+  //   { type: "app_update", tag: "v2.0.12",
+  //     url: "https://github.com/o/r/releases/tag/v2.0.12",
+  //     notes: "optional changelog" }
+  // Fans out to EVERY registered device — no space/actor scoping.
+  if (body.type === "app_update") {
+    const tag = (body.tag ?? "").trim();
+    if (!tag) return new Response("bad payload", { status: 400 });
+    const url = (body.url ?? "").trim();
+    const notes = (body.notes ?? body.body ?? "").trim();
+    const toks = await rest("device_tokens?select=token&limit=1000");
+    const raw = Array.isArray(toks.json)
+      ? (toks.json as Array<{ token: string }>)
+      : [];
+    const tokens = [...new Set(raw.map((r) => r.token).filter(Boolean))];
+    if (tokens.length === 0) {
+      return Response.json({ ok: true, sent: 0, reason: "no-tokens" });
+    }
+    const title = "ourspace " + tag + " is here";
+    const bodyText = notes
+      ? notes.slice(0, 120)
+      : "A cuter build is waiting — tap to update.";
+    const { sent, dead } = await dispatch(tokens, title, bodyText, {
+      kind: "update",
+      tag,
+      url,
+    });
+    await sweepDead(dead);
+    return Response.json({ ok: true, sent, dead: dead.length, tag });
+  }
+
   const kind = KIND_FOR_TABLE[body.table ?? ""];
   if (!kind || !body.space_id || !body.actor_id) {
     return new Response("bad payload", { status: 400 });
@@ -143,9 +256,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
       partnerIds.map(encodeURIComponent).join(",") +
       ")&select=user_id,token",
   );
-  const tokens = Array.isArray(toks.json)
+  const rows = Array.isArray(toks.json)
     ? (toks.json as Array<{ token: string }>)
     : [];
+  const tokens = [...new Set(rows.map((r) => r.token).filter(Boolean))];
   if (tokens.length === 0) {
     return Response.json({ ok: true, sent: 0, reason: "no-tokens" });
   }
@@ -167,63 +281,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // Keep the plain title.
   }
 
-  const { token, projectId } = await fcmAuth();
-  let sent = 0;
-  const dead: string[] = [];
-  for (const t of tokens) {
-    const res = await fetch(
-      "https://fcm.googleapis.com/v1/projects/" +
-        projectId +
-        "/messages:send",
-      {
-        method: "POST",
-        headers: {
-          Authorization: "Bearer " + token,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: {
-            token: t.token,
-            notification: { title, body: body.body || "" },
-            android: {
-              priority: "high",
-              notification: { channel_id: "ourspace_push" },
-            },
-            data: { kind },
-          },
-        }),
-      },
-    );
-    if (res.ok) {
-      sent++;
-    } else {
-      try {
-        const err = (await res.json()) as {
-          error?: { status?: string };
-        };
-        if (err?.error?.status === "NOT_FOUND") dead.push(t.token);
-      } catch {
-        // Leave the token; transient failure.
-      }
-    }
-  }
-
-  // Drop tokens FCM no longer knows (app uninstalled): keeps the table
-  // clean so future sends don't pay for dead rows.
-  for (const d of dead) {
-    await fetch(
-      SUPABASE_URL +
-        "/rest/v1/device_tokens?token=eq." +
-        encodeURIComponent(d),
-      {
-        method: "DELETE",
-        headers: {
-          apikey: SERVICE_ROLE,
-          Authorization: "Bearer " + SERVICE_ROLE,
-        },
-      },
-    );
-  }
+  const { sent, dead } = await dispatch(
+    tokens,
+    title,
+    body.body || "",
+    { kind },
+  );
+  await sweepDead(dead);
 
   return Response.json({ ok: true, sent, dead: dead.length });
 });

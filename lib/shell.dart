@@ -77,6 +77,7 @@ class _AppShellState extends State<AppShell> {
   void initState() {
     super.initState();
     Push.openTab.addListener(_onPushTab);
+    Push.openUpdate.addListener(_onPushUpdate);
     _loadSpace();
     _checkForUpdate();
   }
@@ -84,6 +85,7 @@ class _AppShellState extends State<AppShell> {
   @override
   void dispose() {
     Push.openTab.removeListener(_onPushTab);
+    Push.openUpdate.removeListener(_onPushUpdate);
     super.dispose();
   }
 
@@ -94,17 +96,29 @@ class _AppShellState extends State<AppShell> {
     _jump(t);
   }
 
+  /// Update-push tap: re-check GitHub immediately, ignoring the
+  /// "Later"-skip for this tag so the dialog re-appears on demand.
+  void _onPushUpdate() {
+    final t = Push.openUpdate.value;
+    if (t == null) return;
+    Push.openUpdate.value = null;
+    _checkForUpdate(fromPush: true);
+  }
+
   /// Check GitHub releases for a newer build. Silent on any failure
   /// (offline, no releases, tests without platform plugins) so the
-  /// shell never blocks on this.
-  Future<void> _checkForUpdate() async {
+  /// shell never blocks on this. [fromPush] bypasses the skipped-tag
+  /// guard — a tap on the update notification always re-shows.
+  Future<void> _checkForUpdate({bool fromPush = false}) async {
     try {
       final info = await PackageInfo.fromPlatform();
       final rel = await fetchLatestRelease();
       if (rel == null) return;
       if (!isNewerVersion(info.version, rel.tag)) return;
-      final skipped = await KawaiiPrefs.loadSkippedUpdateTag();
-      if (skipped == rel.tag) return;
+      if (!fromPush) {
+        final skipped = await KawaiiPrefs.loadSkippedUpdateTag();
+        if (skipped == rel.tag) return;
+      }
       if (!mounted) return;
       setState(() => _update = rel);
       WidgetsBinding.instance.addPostFrameCallback((_) => _showUpdateDialog());
