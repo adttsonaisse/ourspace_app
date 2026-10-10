@@ -53,3 +53,7 @@ app.*.map.json
 android/key.properties
 *.jks
 *.keystore
+
+# Local build reports & temp assets — never commit
+android/build/
+assets/tmp/
